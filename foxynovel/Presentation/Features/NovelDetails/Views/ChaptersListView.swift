@@ -1,0 +1,117 @@
+//
+//  ChaptersListView.swift
+//  foxynovel
+//
+//  Created by Claude on 14/10/25.
+//
+
+import SwiftUI
+
+struct ChaptersListView: View {
+    let novelId: String
+    let novelTitle: String
+    @ObservedObject var viewModel: NovelDetailsViewModel
+    @State private var selectedChapterId: String?
+    @State private var showingChapterReader = false
+
+    var body: some View {
+        ScrollView {
+            LazyVStack(spacing: Spacing.xs) {
+                if viewModel.chapters.isEmpty {
+                    emptyState
+                } else {
+                    ForEach(Array(viewModel.chapters.enumerated()), id: \.element.id) { index, chapter in
+                        ChapterRow(chapter: chapter) {
+                            selectedChapterId = chapter.id
+                            showingChapterReader = true
+                        }
+                        .onAppear {
+                            // Lazy loading: cargar más cuando estamos cerca del final
+                            if index == viewModel.chapters.count - 10 {
+                                Task {
+                                    await viewModel.loadMoreChapters()
+                                }
+                            }
+                        }
+                    }
+
+                    // Loading indicator at the bottom
+                    if viewModel.isLoadingMoreChapters {
+                        loadingIndicator
+                    } else if !viewModel.hasMoreChapters && viewModel.chapters.count > 50 {
+                        endMessage
+                    }
+                }
+            }
+            .padding(.horizontal, Spacing.screenPadding)
+            .padding(.vertical, Spacing.md)
+        }
+        .navigationTitle("Capítulos")
+        .navigationBarTitleDisplayMode(.inline)
+        .sheet(isPresented: $showingChapterReader) {
+            if let chapterId = selectedChapterId {
+                // TODO: Replace with ChapterReaderView when implemented
+                Text("Chapter Reader: \(chapterId)")
+            }
+        }
+    }
+
+    // MARK: - Empty State
+    private var emptyState: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "book.closed")
+                .font(.system(size: 50))
+                .foregroundColor(.textSecondary)
+
+            Text("No hay capítulos disponibles")
+                .typography(Typography.bodyLarge, color: .textSecondary)
+
+            Text("Vuelve pronto para ver nuevos capítulos")
+                .typography(Typography.bodySmall, color: .textSecondary)
+                .multilineTextAlignment(.center)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Spacing.xxl)
+    }
+
+    // MARK: - Loading Indicator
+    private var loadingIndicator: some View {
+        HStack(spacing: Spacing.sm) {
+            ProgressView()
+                .scaleEffect(0.8)
+
+            Text("Cargando más capítulos...")
+                .typography(Typography.bodySmall, color: .textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, Spacing.md)
+    }
+
+    // MARK: - End Message
+    private var endMessage: some View {
+        HStack {
+            Rectangle()
+                .fill(Color.textSecondary.opacity(0.3))
+                .frame(height: 1)
+
+            Text("Fin de la lista")
+                .typography(Typography.labelSmall, color: .textSecondary)
+                .padding(.horizontal, Spacing.sm)
+
+            Rectangle()
+                .fill(Color.textSecondary.opacity(0.3))
+                .frame(height: 1)
+        }
+        .padding(.vertical, Spacing.md)
+    }
+}
+
+#Preview {
+    NavigationStack {
+        ChaptersListView(
+            novelId: "test",
+            novelTitle: "Test Novel",
+            viewModel: NovelDetailsViewModel()
+        )
+    }
+}
