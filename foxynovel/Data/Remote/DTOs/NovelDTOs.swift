@@ -208,7 +208,8 @@ extension PaginationDTO {
             total: total,
             limit: limit,
             offset: offset,
-            hasMore: hasMore
+            hasMore: hasMore,
+            sortOrder: sortOrder
         )
     }
 }

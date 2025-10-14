@@ -18,6 +18,7 @@ final class NovelDetailsViewModel: ObservableObject {
     @Published var isFavorite: Bool = false
     @Published var isLiked: Bool = false
     @Published var hasMoreChapters: Bool = true
+    @Published var sortOrder: String = "asc"
 
     private let novelRepository: NovelRepositoryProtocol
     private let tokenManager: TokenProvider
@@ -80,7 +81,8 @@ final class NovelDetailsViewModel: ObservableObject {
             let response = try await novelRepository.getChaptersPaginated(
                 novelId: novelId,
                 offset: 0,
-                limit: chaptersPerPage
+                limit: chaptersPerPage,
+                sortOrder: sortOrder
             )
 
             chapters = response.chapters
@@ -112,7 +114,8 @@ final class NovelDetailsViewModel: ObservableObject {
             let response = try await novelRepository.getChaptersPaginated(
                 novelId: novelId,
                 offset: currentOffset,
-                limit: chaptersPerPage
+                limit: chaptersPerPage,
+                sortOrder: sortOrder
             )
 
             // Agregar nuevos capítulos evitando duplicados
@@ -135,6 +138,18 @@ final class NovelDetailsViewModel: ObservableObject {
     func startReading() -> ChapterInfo? {
         // Return first chapter if available
         return chapters.first
+    }
+
+    func toggleSortOrder() async {
+        // Toggle between asc and desc
+        sortOrder = sortOrder == "asc" ? "desc" : "asc"
+
+        // Reset pagination and reload chapters
+        currentOffset = 0
+        chapters = []
+        hasMoreChapters = true
+
+        await loadInitialChapters()
     }
 
     func toggleFavorite() async {

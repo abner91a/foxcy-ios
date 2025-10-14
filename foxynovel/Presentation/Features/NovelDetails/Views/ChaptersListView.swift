@@ -48,6 +48,24 @@ struct ChaptersListView: View {
         }
         .navigationTitle("Capítulos")
         .navigationBarTitleDisplayMode(.inline)
+        .toolbar {
+            ToolbarItem(placement: .navigationBarTrailing) {
+                Button {
+                    Task {
+                        await viewModel.toggleSortOrder()
+                    }
+                } label: {
+                    HStack(spacing: 4) {
+                        Image(systemName: viewModel.sortOrder == "asc" ? "arrow.up" : "arrow.down")
+                            .font(.system(size: 14, weight: .semibold))
+                        Text(viewModel.sortOrder == "asc" ? "1→N" : "N→1")
+                            .font(.system(size: 12, weight: .medium))
+                    }
+                    .foregroundColor(.accent)
+                }
+                .disabled(viewModel.isLoadingMoreChapters)
+            }
+        }
         .sheet(isPresented: $showingChapterReader) {
             if let chapterId = selectedChapterId {
                 // TODO: Replace with ChapterReaderView when implemented

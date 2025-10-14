@@ -72,4 +72,5 @@ struct PaginationInfo {
     let limit: Int
     let offset: Int
     let hasMore: Bool
+    let sortOrder: String?
 }

@@ -10,7 +10,7 @@ import Foundation
 enum NovelEndpoints: Endpoint {
     case teVaGustar(cursor: String?, limit: Int)
     case novelDetails(id: String, userId: String?)
-    case chaptersPaginated(novelId: String, offset: Int, limit: Int)
+    case chaptersPaginated(novelId: String, offset: Int, limit: Int, sortOrder: String?)
     case search(query: String, page: Int)
     case toggleFavorite(novelId: String)
     case toggleLike(novelId: String)
@@ -21,7 +21,7 @@ enum NovelEndpoints: Endpoint {
             return "/v1/home/tevagustar"
         case .novelDetails(let id, _):
             return "/v1/detallesNovelsapp/\(id)"
-        case .chaptersPaginated(let novelId, _, _):
+        case .chaptersPaginated(let novelId, _, _, _):
             return "/v1/detallesNovelsapp/\(novelId)/capitulos"
         case .search:
             return "/v1/search"
@@ -54,8 +54,12 @@ enum NovelEndpoints: Endpoint {
                 return ["userId": userId]
             }
             return nil
-        case .chaptersPaginated(_, let offset, let limit):
-            return ["offset": "\(offset)", "limit": "\(limit)"]
+        case .chaptersPaginated(_, let offset, let limit, let sortOrder):
+            var params = ["offset": "\(offset)", "limit": "\(limit)"]
+            if let sortOrder = sortOrder {
+                params["sortOrder"] = sortOrder
+            }
+            return params
         case .search(let query, let page):
             return ["q": query, "page": "\(page)"]
         case .toggleFavorite, .toggleLike:

@@ -31,8 +31,8 @@ final class NovelRepositoryImpl: NovelRepositoryProtocol {
         return response.data.toDomain()
     }
 
-    func getChaptersPaginated(novelId: String, offset: Int, limit: Int) async throws -> ChaptersPaginationResponse {
-        let endpoint = NovelEndpoints.chaptersPaginated(novelId: novelId, offset: offset, limit: limit)
+    func getChaptersPaginated(novelId: String, offset: Int, limit: Int, sortOrder: String? = nil) async throws -> ChaptersPaginationResponse {
+        let endpoint = NovelEndpoints.chaptersPaginated(novelId: novelId, offset: offset, limit: limit, sortOrder: sortOrder)
         let response: ApiResponse<ChaptersPaginationDTO> = try await networkClient.request(endpoint)
         return response.data.toDomain()
     }
