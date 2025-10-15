@@ -66,7 +66,7 @@ struct ChaptersListView: View {
                 .disabled(viewModel.isLoadingMoreChapters)
             }
         }
-        .sheet(isPresented: $showingChapterReader) {
+        .fullScreenCover(isPresented: $showingChapterReader) {
             if let chapterId = selectedChapterId {
                 ChapterReaderView(
                     chapterId: chapterId,

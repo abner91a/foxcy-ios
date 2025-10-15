@@ -11,43 +11,191 @@ struct ChapterReaderView: View {
     // MARK: - Properties
     @StateObject private var viewModel: ChapterReaderViewModel
     @Environment(\.dismiss) private var dismiss
+    @State private var preferences: ReadingPreferences
+    @State private var isToolbarVisible = true
+    @State private var showSettings = false
+    @State private var autoHideTask: Task<Void, Never>?
+
     let chapterId: String
 
     // MARK: - Initialization
     init(chapterId: String, repository: NovelRepositoryProtocol) {
         self.chapterId = chapterId
         _viewModel = StateObject(wrappedValue: ChapterReaderViewModel(repository: repository))
+        _preferences = State(initialValue: UserDefaults.standard.readingPreferences)
     }
 
     // MARK: - Body
     var body: some View {
-        NavigationView {
-            ZStack {
-                Color.readerBackground
-                    .ignoresSafeArea()
+        ZStack {
+            // Background with theme color
+            preferences.theme.backgroundColor
+                .ignoresSafeArea()
 
-                contentView
-            }
-            .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .navigationBarLeading) {
-                    Button(action: { dismiss() }) {
-                        Image(systemName: "xmark")
-                            .foregroundColor(.textPrimary)
-                    }
+            contentView
+
+            // Floating toolbar overlay
+            VStack {
+                if isToolbarVisible {
+                    topToolbar
+                        .transition(.move(edge: .top).combined(with: .opacity))
                 }
 
-                ToolbarItem(placement: .principal) {
-                    if case .success(let content) = viewModel.state {
-                        Text(content.title)
-                            .typography(.headline, color: .textPrimary)
-                            .lineLimit(1)
-                    }
+                Spacer()
+
+                if isToolbarVisible {
+                    bottomToolbar
+                        .transition(.move(edge: .bottom).combined(with: .opacity))
                 }
             }
+            .animation(.easeInOut(duration: 0.3), value: isToolbarVisible)
         }
+        .preferredColorScheme(preferences.theme.colorScheme)
+        .statusBar(hidden: !isToolbarVisible)
         .task {
             await viewModel.loadChapter(id: chapterId)
+            startAutoHideTimer()
+        }
+        .sheet(isPresented: $showSettings) {
+            ReaderSettingsSheet(
+                preferences: $preferences,
+                onDismiss: {
+                    showSettings = false
+                    savePreferences()
+                }
+            )
+            .presentationDetents([.medium, .large])
+            .presentationDragIndicator(.visible)
+        }
+        .onChange(of: preferences) { _, newPreferences in
+            savePreferences()
+            if newPreferences.autoHideToolbar {
+                restartAutoHideTimer()
+            }
+        }
+    }
+
+    // MARK: - Top Toolbar
+    private var topToolbar: some View {
+        HStack {
+            Button(action: { dismiss() }) {
+                Image(systemName: "xmark")
+                    .font(.title3)
+                    .foregroundColor(preferences.theme.textColor)
+                    .frame(width: 44, height: 44)
+            }
+
+            Spacer()
+
+            if case .success(let content) = viewModel.state {
+                Text(content.title)
+                    .font(.headline)
+                    .foregroundColor(preferences.theme.textColor)
+                    .lineLimit(1)
+            }
+
+            Spacer()
+
+            Button(action: { showSettings = true }) {
+                Image(systemName: "textformat.size")
+                    .font(.title3)
+                    .foregroundColor(preferences.theme.textColor)
+                    .frame(width: 44, height: 44)
+            }
+        }
+        .padding(.horizontal)
+        .padding(.vertical, 8)
+        .background(preferences.theme.backgroundColor.opacity(0.95))
+        .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: 2)
+    }
+
+    // MARK: - Bottom Toolbar
+    private var bottomToolbar: some View {
+        VStack(spacing: 0) {
+            if case .success = viewModel.state {
+                // Progress bar
+                GeometryReader { geometry in
+                    ZStack(alignment: .leading) {
+                        Rectangle()
+                            .fill(preferences.theme.secondaryTextColor.opacity(0.2))
+                            .frame(height: 2)
+
+                        Rectangle()
+                            .fill(Color.accentColor)
+                            .frame(width: geometry.size.width * CGFloat(viewModel.readingProgress), height: 2)
+                    }
+                }
+                .frame(height: 2)
+            }
+
+            HStack(spacing: 12) {
+                // Previous button
+                Button(action: {
+                    Task {
+                        await viewModel.navigateToPreviousChapter()
+                        restartAutoHideTimer()
+                    }
+                }) {
+                    Image(systemName: "chevron.left")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(canNavigatePrevious ? preferences.theme.textColor : preferences.theme.secondaryTextColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                }
+                .disabled(!canNavigatePrevious)
+
+                Divider()
+                    .frame(height: 24)
+
+                // Theme toggle button
+                Button(action: {
+                    toggleTheme()
+                    restartAutoHideTimer()
+                }) {
+                    Image(systemName: preferences.theme == .dark ? "sun.max.fill" : "moon.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(preferences.theme.textColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                }
+
+                Divider()
+                    .frame(height: 24)
+
+                // Settings button
+                Button(action: {
+                    showSettings = true
+                    cancelAutoHideTimer()
+                }) {
+                    Image(systemName: "gearshape.fill")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(preferences.theme.textColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                }
+
+                Divider()
+                    .frame(height: 24)
+
+                // Next button
+                Button(action: {
+                    Task {
+                        await viewModel.navigateToNextChapter()
+                        restartAutoHideTimer()
+                    }
+                }) {
+                    Image(systemName: "chevron.right")
+                        .font(.body.weight(.semibold))
+                        .foregroundColor(canNavigateNext ? preferences.theme.textColor : preferences.theme.secondaryTextColor)
+                        .frame(maxWidth: .infinity)
+                        .frame(height: 44)
+                }
+                .disabled(!canNavigateNext)
+            }
+            .padding(.horizontal)
+            .padding(.vertical, 8)
+            .background(preferences.theme.backgroundColor.opacity(0.95))
+            .shadow(color: Color.black.opacity(0.1), radius: 2, x: 0, y: -2)
         }
     }
 
@@ -57,7 +205,7 @@ struct ChapterReaderView: View {
         switch viewModel.state {
         case .idle, .loading:
             ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: .primary))
+                .progressViewStyle(CircularProgressViewStyle(tint: preferences.theme.textColor))
                 .scaleEffect(1.2)
 
         case .success(let content):
@@ -70,33 +218,68 @@ struct ChapterReaderView: View {
 
     // MARK: - Reader Content
     private func readerContent(_ content: ChapterContent) -> some View {
-        VStack(spacing: 0) {
-            // Main reading area with LazyVStack for performance
-            ScrollView {
-                LazyVStack(alignment: .leading, spacing: Spacing.md) {
-                    // Chapter header
-                    VStack(alignment: .leading, spacing: Spacing.xs) {
-                        Text(content.title)
-                            .font(Typography.readerHeading)
-                            .foregroundColor(.textPrimary)
-                            .padding(.bottom, Spacing.xs)
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: preferences.validatedLineSpacing) {
+                // Chapter header
+                VStack(alignment: .leading, spacing: 12) {
+                    Text(content.title)
+                        .font(preferences.fontFamily.font(size: preferences.validatedFontSize + 6))
+                        .fontWeight(.bold)
+                        .foregroundColor(preferences.theme.textColor)
+                        .padding(.bottom, 4)
 
-                        Text("\(content.wordCount) palabras • \(content.readingTimeMinutes) min de lectura")
-                            .typography(.caption, color: .textSecondary)
-                    }
-                    .padding(.bottom, Spacing.lg)
+                    Text("\(content.wordCount) palabras • \(content.readingTimeMinutes) min de lectura")
+                        .font(.caption)
+                        .foregroundColor(preferences.theme.secondaryTextColor)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 24)
 
-                    // Content segments
-                    ForEach(content.contentSegments) { segment in
-                        segmentView(segment)
+                // Content segments
+                ForEach(Array(content.contentSegments.enumerated()), id: \.offset) { index, segment in
+                    segmentView(segment)
+                        .onAppear {
+                            viewModel.updateReadingProgress(segmentIndex: index, totalSegments: content.contentSegments.count)
+                        }
+                }
+            }
+            .padding(24)
+            .padding(.top, isToolbarVisible ? 60 : 20)
+            .padding(.bottom, isToolbarVisible ? 80 : 20)
+        }
+        .contentShape(Rectangle())
+        .onTapGesture {
+            withAnimation {
+                isToolbarVisible.toggle()
+            }
+            if isToolbarVisible {
+                startAutoHideTimer()
+            } else {
+                cancelAutoHideTimer()
+            }
+        }
+        .gesture(
+            DragGesture(minimumDistance: 50, coordinateSpace: .local)
+                .onEnded { value in
+                    let horizontalAmount = value.translation.width
+                    let verticalAmount = value.translation.height
+
+                    // Only trigger if horizontal swipe is dominant
+                    if abs(horizontalAmount) > abs(verticalAmount) {
+                        if horizontalAmount > 0 && canNavigatePrevious {
+                            // Swipe right -> previous chapter
+                            Task {
+                                await viewModel.navigateToPreviousChapter()
+                            }
+                        } else if horizontalAmount < 0 && canNavigateNext {
+                            // Swipe left -> next chapter
+                            Task {
+                                await viewModel.navigateToNextChapter()
+                            }
+                        }
                     }
                 }
-                .padding(Spacing.screenPadding)
-            }
-
-            // Navigation bar
-            navigationBar(content)
-        }
+        )
     }
 
     // MARK: - Segment View
@@ -105,77 +288,38 @@ struct ChapterReaderView: View {
         switch segment.type {
         case .heading:
             Text(segment.content)
-                .typography(headingFont(level: segment.level ?? 1), color: .textPrimary)
-                .padding(.top, Spacing.sm)
-                .padding(.bottom, Spacing.xs)
+                .font(headingFont(level: segment.level ?? 1))
+                .fontWeight(.semibold)
+                .foregroundColor(preferences.theme.textColor)
+                .padding(.top, 16)
+                .padding(.bottom, 8)
 
         case .paragraph:
             Text(segment.content)
-                .font(Typography.readerBody)
-                .foregroundColor(.readerText)
-                .lineSpacing(8)
-                .padding(.bottom, Spacing.sm)
+                .font(preferences.fontFamily.font(size: preferences.validatedFontSize))
+                .foregroundColor(preferences.theme.textColor)
+                .lineSpacing(preferences.validatedLineSpacing)
+                .padding(.bottom, 12)
         }
-    }
-
-    // MARK: - Navigation Bar
-    private func navigationBar(_ content: ChapterContent) -> some View {
-        HStack(spacing: Spacing.md) {
-            // Previous button
-            Button(action: {
-                Task {
-                    await viewModel.navigateToPreviousChapter()
-                }
-            }) {
-                HStack(spacing: Spacing.xs) {
-                    Image(systemName: "chevron.left")
-                    Text("Anterior")
-                }
-                .typography(.body, color: content.hasPreviousChapter ? .primary : .textSecondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.sm)
-                .background(Color.cardBackground)
-                .cornerRadius(CornerRadius.sm)
-            }
-            .disabled(!content.hasPreviousChapter)
-
-            // Next button
-            Button(action: {
-                Task {
-                    await viewModel.navigateToNextChapter()
-                }
-            }) {
-                HStack(spacing: Spacing.xs) {
-                    Text("Siguiente")
-                    Image(systemName: "chevron.right")
-                }
-                .typography(.body, color: content.hasNextChapter ? .primary : .textSecondary)
-                .frame(maxWidth: .infinity)
-                .padding(.vertical, Spacing.sm)
-                .background(Color.cardBackground)
-                .cornerRadius(CornerRadius.sm)
-            }
-            .disabled(!content.hasNextChapter)
-        }
-        .padding(Spacing.screenPadding)
-        .background(Color.readerBackground)
-        .shadow(color: Color.black.opacity(0.1), radius: 4, x: 0, y: -2)
     }
 
     // MARK: - Error View
     private func errorView(_ error: Error) -> some View {
-        VStack(spacing: Spacing.md) {
+        VStack(spacing: 20) {
             Image(systemName: "exclamationmark.triangle")
                 .font(.system(size: 48))
-                .foregroundColor(.textSecondary)
+                .foregroundColor(preferences.theme.secondaryTextColor)
 
             Text("Error al cargar el capítulo")
-                .typography(.title3, color: .textPrimary)
+                .font(.title3)
+                .fontWeight(.semibold)
+                .foregroundColor(preferences.theme.textColor)
 
             Text(error.localizedDescription)
-                .typography(.body, color: .textSecondary)
+                .font(.body)
+                .foregroundColor(preferences.theme.secondaryTextColor)
                 .multilineTextAlignment(.center)
-                .padding(.horizontal, Spacing.xl)
+                .padding(.horizontal, 40)
 
             Button(action: {
                 Task {
@@ -183,22 +327,86 @@ struct ChapterReaderView: View {
                 }
             }) {
                 Text("Reintentar")
-                    .typography(.body, color: .white)
-                    .padding(.horizontal, Spacing.lg)
-                    .padding(.vertical, Spacing.sm)
-                    .background(Color.primary)
-                    .cornerRadius(CornerRadius.sm)
+                    .font(.body)
+                    .fontWeight(.semibold)
+                    .foregroundColor(.white)
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 12)
+                    .background(Color.accentColor)
+                    .cornerRadius(8)
             }
         }
     }
 
     // MARK: - Helper Methods
     private func headingFont(level: Int) -> Font {
+        let baseSize = preferences.validatedFontSize
         switch level {
-        case 1: return Typography.readerFont(size: 28)
-        case 2: return Typography.readerFont(size: 24)
-        case 3: return Typography.readerFont(size: 20)
-        default: return Typography.readerFont(size: 18)
+        case 1: return preferences.fontFamily.font(size: baseSize + 10)
+        case 2: return preferences.fontFamily.font(size: baseSize + 6)
+        case 3: return preferences.fontFamily.font(size: baseSize + 4)
+        default: return preferences.fontFamily.font(size: baseSize + 2)
+        }
+    }
+
+    private var canNavigatePrevious: Bool {
+        if case .success(let content) = viewModel.state {
+            return content.hasPreviousChapter
+        }
+        return false
+    }
+
+    private var canNavigateNext: Bool {
+        if case .success(let content) = viewModel.state {
+            return content.hasNextChapter
+        }
+        return false
+    }
+
+    private func savePreferences() {
+        UserDefaults.standard.readingPreferences = preferences
+    }
+
+    private func toggleTheme() {
+        withAnimation {
+            switch preferences.theme {
+            case .light:
+                preferences.theme = .dark
+            case .dark:
+                preferences.theme = .sepia
+            case .sepia:
+                preferences.theme = .light
+            }
+        }
+    }
+
+    // MARK: - Auto-Hide Timer
+    private func startAutoHideTimer() {
+        guard preferences.autoHideToolbar else { return }
+
+        cancelAutoHideTimer()
+
+        autoHideTask = Task {
+            try? await Task.sleep(nanoseconds: UInt64(preferences.autoHideDelay * 1_000_000_000))
+
+            guard !Task.isCancelled else { return }
+
+            await MainActor.run {
+                withAnimation {
+                    isToolbarVisible = false
+                }
+            }
+        }
+    }
+
+    private func cancelAutoHideTimer() {
+        autoHideTask?.cancel()
+        autoHideTask = nil
+    }
+
+    private func restartAutoHideTimer() {
+        if isToolbarVisible {
+            startAutoHideTimer()
         }
     }
 }

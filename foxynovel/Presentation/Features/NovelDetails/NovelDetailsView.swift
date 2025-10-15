@@ -54,7 +54,7 @@ struct NovelDetailsView: View {
         .task {
             await viewModel.loadNovelDetails(id: novelId)
         }
-        .sheet(isPresented: $showingChapterReader) {
+        .fullScreenCover(isPresented: $showingChapterReader) {
             if let chapterId = selectedChapterId {
                 ChapterReaderView(
                     chapterId: chapterId,

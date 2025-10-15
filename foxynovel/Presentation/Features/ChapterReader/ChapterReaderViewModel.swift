@@ -13,6 +13,7 @@ final class ChapterReaderViewModel: ObservableObject {
     // MARK: - Published Properties
     @Published private(set) var state: LoadingState<ChapterContent> = .idle
     @Published private(set) var currentChapterId: String = ""
+    @Published private(set) var readingProgress: Float = 0.0
 
     // MARK: - Dependencies
     private let repository: NovelRepositoryProtocol
@@ -26,6 +27,7 @@ final class ChapterReaderViewModel: ObservableObject {
     func loadChapter(id: String) async {
         currentChapterId = id
         state = .loading
+        readingProgress = 0.0
 
         do {
             let content = try await repository.getChapterContent(chapterId: id)
@@ -33,6 +35,11 @@ final class ChapterReaderViewModel: ObservableObject {
         } catch {
             state = .failure(error)
         }
+    }
+
+    func updateReadingProgress(segmentIndex: Int, totalSegments: Int) {
+        guard totalSegments > 0 else { return }
+        readingProgress = Float(segmentIndex + 1) / Float(totalSegments)
     }
 
     func navigateToPreviousChapter() async {
