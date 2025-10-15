@@ -9,7 +9,7 @@ import SwiftUI
 
 struct ChapterReaderView: View {
     // MARK: - Properties
-    @StateObject private var viewModel: ChapterReaderViewModel
+    @ObservedObject var viewModel: ChapterReaderViewModel
     @Environment(\.dismiss) private var dismiss
     @State private var preferences: ReadingPreferences
     @State private var isToolbarVisible = true
@@ -19,9 +19,9 @@ struct ChapterReaderView: View {
     let chapterId: String
 
     // MARK: - Initialization
-    init(chapterId: String, repository: NovelRepositoryProtocol) {
+    init(chapterId: String, viewModel: ChapterReaderViewModel) {
         self.chapterId = chapterId
-        _viewModel = StateObject(wrappedValue: ChapterReaderViewModel(repository: repository))
+        self.viewModel = viewModel
         _preferences = State(initialValue: UserDefaults.standard.readingPreferences)
     }
 
@@ -51,6 +51,8 @@ struct ChapterReaderView: View {
                 }
             }
         }
+        .navigationBarTitleDisplayMode(.inline)
+        .navigationBarBackButtonHidden(false)
         .preferredColorScheme(preferences.theme.colorScheme)
         .statusBar(hidden: !isToolbarVisible)
         .task {
@@ -79,13 +81,6 @@ struct ChapterReaderView: View {
     // MARK: - Top Toolbar
     private var topToolbar: some View {
         HStack {
-            Button(action: { dismiss() }) {
-                Image(systemName: "xmark")
-                    .font(.title3)
-                    .foregroundColor(preferences.theme.textColor)
-                    .frame(width: 44, height: 44)
-            }
-
             Spacer()
 
             if case .success(let content) = viewModel.state {
@@ -477,8 +472,10 @@ struct ChapterReaderView: View {
 #Preview {
     ChapterReaderView(
         chapterId: "sample-id",
-        repository: NovelRepositoryImpl(
-            networkClient: NetworkClient()
+        viewModel: ChapterReaderViewModel(
+            repository: NovelRepositoryImpl(
+                networkClient: NetworkClient()
+            )
         )
     )
 }

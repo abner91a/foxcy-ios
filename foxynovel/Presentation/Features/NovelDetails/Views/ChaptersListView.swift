@@ -11,6 +11,9 @@ struct ChaptersListView: View {
     let novelId: String
     let novelTitle: String
     @ObservedObject var viewModel: NovelDetailsViewModel
+    @StateObject private var chapterReaderViewModel = ChapterReaderViewModel(
+        repository: DIContainer.shared.novelRepository
+    )
     @State private var selectedChapterId: String?
     @State private var showingChapterReader = false
 
@@ -66,12 +69,14 @@ struct ChaptersListView: View {
                 .disabled(viewModel.isLoadingMoreChapters)
             }
         }
-        .background(
-            ChapterReaderPresenter(
-                isPresented: $showingChapterReader,
-                chapterId: selectedChapterId
-            )
-        )
+        .navigationDestination(isPresented: $showingChapterReader) {
+            if let chapterId = selectedChapterId {
+                ChapterReaderView(
+                    chapterId: chapterId,
+                    viewModel: chapterReaderViewModel
+                )
+            }
+        }
     }
 
     // MARK: - Empty State
@@ -121,25 +126,6 @@ struct ChaptersListView: View {
                 .frame(height: 1)
         }
         .padding(.vertical, Spacing.md)
-    }
-}
-
-// MARK: - ChapterReaderPresenter
-// This wrapper prevents parent view re-renders from recreating ChapterReaderView
-private struct ChapterReaderPresenter: View {
-    @Binding var isPresented: Bool
-    let chapterId: String?
-
-    var body: some View {
-        EmptyView()
-            .fullScreenCover(isPresented: $isPresented) {
-                if let chapterId = chapterId {
-                    ChapterReaderView(
-                        chapterId: chapterId,
-                        repository: DIContainer.shared.novelRepository
-                    )
-                }
-            }
     }
 }
 

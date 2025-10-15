@@ -10,6 +10,9 @@ import SwiftUI
 struct NovelDetailsView: View {
     let novelId: String
     @StateObject private var viewModel = NovelDetailsViewModel()
+    @StateObject private var chapterReaderViewModel = ChapterReaderViewModel(
+        repository: DIContainer.shared.novelRepository
+    )
     @Environment(\.dismiss) private var dismiss
     @State private var selectedChapterId: String?
     @State private var showingChapterReader = false
@@ -54,12 +57,15 @@ struct NovelDetailsView: View {
         .task {
             await viewModel.loadNovelDetails(id: novelId)
         }
-        .background(
-            ChapterReaderPresenter(
-                isPresented: $showingChapterReader,
-                chapterId: selectedChapterId
-            )
-        )
+        .navigationDestination(isPresented: $showingChapterReader) {
+            if let chapterId = selectedChapterId {
+                ChapterReaderView(
+                    chapterId: chapterId,
+                    viewModel: chapterReaderViewModel
+                )
+            }
+        }
+        .id(novelId)
     }
 
     // MARK: - Header Section
@@ -382,25 +388,6 @@ struct NovelDetailsView: View {
             return String(format: "%.1fK", Double(number) / 1000.0)
         }
         return "\(number)"
-    }
-}
-
-// MARK: - ChapterReaderPresenter
-// This wrapper prevents parent view re-renders from recreating ChapterReaderView
-private struct ChapterReaderPresenter: View {
-    @Binding var isPresented: Bool
-    let chapterId: String?
-
-    var body: some View {
-        EmptyView()
-            .fullScreenCover(isPresented: $isPresented) {
-                if let chapterId = chapterId {
-                    ChapterReaderView(
-                        chapterId: chapterId,
-                        repository: DIContainer.shared.novelRepository
-                    )
-                }
-            }
     }
 }
 
