@@ -56,8 +56,10 @@ struct NovelDetailsView: View {
         }
         .sheet(isPresented: $showingChapterReader) {
             if let chapterId = selectedChapterId {
-                // TODO: Replace with ChapterReaderView when implemented
-                Text("Chapter Reader: \(chapterId)")
+                ChapterReaderView(
+                    chapterId: chapterId,
+                    repository: DIContainer.shared.novelRepository
+                )
             }
         }
     }

@@ -52,4 +52,10 @@ final class NovelRepositoryImpl: NovelRepositoryProtocol {
         let endpoint = NovelEndpoints.toggleLike(novelId: novelId)
         try await networkClient.request(endpoint)
     }
+
+    func getChapterContent(chapterId: String) async throws -> ChapterContent {
+        let endpoint = NovelEndpoints.chapterContent(chapterId: chapterId)
+        let response: ApiResponse<ChapterContentDTO> = try await networkClient.request(endpoint)
+        return response.data.toDomain()
+    }
 }

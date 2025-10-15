@@ -11,6 +11,7 @@ enum NovelEndpoints: Endpoint {
     case teVaGustar(cursor: String?, limit: Int)
     case novelDetails(id: String, userId: String?)
     case chaptersPaginated(novelId: String, offset: Int, limit: Int, sortOrder: String?)
+    case chapterContent(chapterId: String)
     case search(query: String, page: Int)
     case toggleFavorite(novelId: String)
     case toggleLike(novelId: String)
@@ -23,6 +24,8 @@ enum NovelEndpoints: Endpoint {
             return "/v1/detallesNovelsapp/\(id)"
         case .chaptersPaginated(let novelId, _, _, _):
             return "/v1/detallesNovelsapp/\(novelId)/capitulos"
+        case .chapterContent(let chapterId):
+            return "/v1/capitulosNovelapp/\(chapterId)/lectura"
         case .search:
             return "/v1/search"
         case .toggleFavorite:
@@ -34,7 +37,7 @@ enum NovelEndpoints: Endpoint {
 
     var method: HTTPMethod {
         switch self {
-        case .teVaGustar, .novelDetails, .chaptersPaginated, .search:
+        case .teVaGustar, .novelDetails, .chaptersPaginated, .chapterContent, .search:
             return .get
         case .toggleFavorite, .toggleLike:
             return .post
@@ -60,6 +63,8 @@ enum NovelEndpoints: Endpoint {
                 params["sortOrder"] = sortOrder
             }
             return params
+        case .chapterContent:
+            return nil
         case .search(let query, let page):
             return ["q": query, "page": "\(page)"]
         case .toggleFavorite, .toggleLike:

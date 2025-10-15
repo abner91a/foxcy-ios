@@ -213,3 +213,66 @@ extension PaginationDTO {
         )
     }
 }
+
+// MARK: - Chapter Content DTOs
+struct ChapterContentDTO: Decodable {
+    let id: String
+    let title: String
+    let contentSegments: [ContentSegmentDTO]
+    let wordCount: Int
+    let readingTimeMinutes: Int
+    let novelId: String
+    let chapterOrder: Int
+    let previousChapterId: String?
+    let nextChapterId: String?
+}
+
+struct ContentSegmentDTO: Decodable {
+    let type: String
+    let content: String
+    let level: Int?
+    let spans: [ContentSpanDTO]
+}
+
+struct ContentSpanDTO: Decodable {
+    let style: String
+    let start: Int
+    let end: Int
+}
+
+extension ChapterContentDTO {
+    func toDomain() -> ChapterContent {
+        return ChapterContent(
+            id: id,
+            title: title,
+            contentSegments: contentSegments.map { $0.toDomain() },
+            wordCount: wordCount,
+            readingTimeMinutes: readingTimeMinutes,
+            novelId: novelId,
+            chapterOrder: chapterOrder,
+            previousChapterId: previousChapterId,
+            nextChapterId: nextChapterId
+        )
+    }
+}
+
+extension ContentSegmentDTO {
+    func toDomain() -> ContentSegment {
+        return ContentSegment(
+            type: SegmentType(rawValue: type) ?? .paragraph,
+            content: content,
+            level: level,
+            spans: spans.map { $0.toDomain() }
+        )
+    }
+}
+
+extension ContentSpanDTO {
+    func toDomain() -> ContentSpan {
+        return ContentSpan(
+            style: SpanStyle(rawValue: style) ?? .bold,
+            start: start,
+            end: end
+        )
+    }
+}
