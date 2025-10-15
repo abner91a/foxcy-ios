@@ -54,14 +54,12 @@ struct NovelDetailsView: View {
         .task {
             await viewModel.loadNovelDetails(id: novelId)
         }
-        .fullScreenCover(isPresented: $showingChapterReader) {
-            if let chapterId = selectedChapterId {
-                ChapterReaderView(
-                    chapterId: chapterId,
-                    repository: DIContainer.shared.novelRepository
-                )
-            }
-        }
+        .background(
+            ChapterReaderPresenter(
+                isPresented: $showingChapterReader,
+                chapterId: selectedChapterId
+            )
+        )
     }
 
     // MARK: - Header Section
@@ -384,6 +382,25 @@ struct NovelDetailsView: View {
             return String(format: "%.1fK", Double(number) / 1000.0)
         }
         return "\(number)"
+    }
+}
+
+// MARK: - ChapterReaderPresenter
+// This wrapper prevents parent view re-renders from recreating ChapterReaderView
+private struct ChapterReaderPresenter: View {
+    @Binding var isPresented: Bool
+    let chapterId: String?
+
+    var body: some View {
+        EmptyView()
+            .fullScreenCover(isPresented: $isPresented) {
+                if let chapterId = chapterId {
+                    ChapterReaderView(
+                        chapterId: chapterId,
+                        repository: DIContainer.shared.novelRepository
+                    )
+                }
+            }
     }
 }
 

@@ -66,14 +66,12 @@ struct ChaptersListView: View {
                 .disabled(viewModel.isLoadingMoreChapters)
             }
         }
-        .fullScreenCover(isPresented: $showingChapterReader) {
-            if let chapterId = selectedChapterId {
-                ChapterReaderView(
-                    chapterId: chapterId,
-                    repository: DIContainer.shared.novelRepository
-                )
-            }
-        }
+        .background(
+            ChapterReaderPresenter(
+                isPresented: $showingChapterReader,
+                chapterId: selectedChapterId
+            )
+        )
     }
 
     // MARK: - Empty State
@@ -123,6 +121,25 @@ struct ChaptersListView: View {
                 .frame(height: 1)
         }
         .padding(.vertical, Spacing.md)
+    }
+}
+
+// MARK: - ChapterReaderPresenter
+// This wrapper prevents parent view re-renders from recreating ChapterReaderView
+private struct ChapterReaderPresenter: View {
+    @Binding var isPresented: Bool
+    let chapterId: String?
+
+    var body: some View {
+        EmptyView()
+            .fullScreenCover(isPresented: $isPresented) {
+                if let chapterId = chapterId {
+                    ChapterReaderView(
+                        chapterId: chapterId,
+                        repository: DIContainer.shared.novelRepository
+                    )
+                }
+            }
     }
 }
 

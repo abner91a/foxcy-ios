@@ -11,7 +11,7 @@ import Combine
 @MainActor
 final class ChapterReaderViewModel: ObservableObject {
     // MARK: - Published Properties
-    @Published private(set) var state: LoadingState<ChapterContent> = .idle
+    @Published private(set) var state: LoadingState<ChapterContent> = .loading
     @Published private(set) var currentChapterId: String = ""
     @Published private(set) var readingProgress: Float = 0.0
 

@@ -206,15 +206,12 @@ struct ChapterReaderView: View {
         switch viewModel.state {
         case .idle, .loading:
             loadingPlaceholder
-                .contentTransition(.opacity)
 
         case .success(let content):
             readerContent(content)
-                .contentTransition(.opacity)
 
         case .failure(let error):
             errorView(error)
-                .contentTransition(.opacity)
         }
     }
 
@@ -337,31 +334,70 @@ struct ChapterReaderView: View {
     // MARK: - Loading Placeholder
     private var loadingPlaceholder: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: preferences.validatedLineSpacing) {
-                // Skeleton header with metadata only
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("0000 palabras • 00 min de lectura")
-                        .font(.caption)
-                        .foregroundColor(preferences.theme.secondaryTextColor)
-                        .redacted(reason: .placeholder)
+            LazyVStack(alignment: .leading, spacing: 16) {
+                // Metadata skeleton
+                HStack(spacing: 4) {
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 80, height: 14)
+
+                    RoundedRectangle(cornerRadius: 4)
+                        .fill(Color.gray.opacity(0.3))
+                        .frame(width: 100, height: 14)
                 }
-                .frame(maxWidth: .infinity, alignment: .leading)
                 .padding(.bottom, 24)
 
-                // Skeleton paragraphs
+                // Paragraph skeletons
                 ForEach(0..<10, id: \.self) { _ in
-                    Text(String(repeating: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ", count: 3))
-                        .font(preferences.fontFamily.font(size: preferences.validatedFontSize))
-                        .foregroundColor(preferences.theme.textColor)
-                        .lineSpacing(preferences.validatedLineSpacing)
-                        .redacted(reason: .placeholder)
-                        .padding(.bottom, 12)
+                    VStack(alignment: .leading, spacing: 8) {
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: preferences.validatedFontSize + 4)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(height: preferences.validatedFontSize + 4)
+
+                        RoundedRectangle(cornerRadius: 4)
+                            .fill(Color.gray.opacity(0.3))
+                            .frame(width: UIScreen.main.bounds.width * 0.7, height: preferences.validatedFontSize + 4)
+                    }
+                    .padding(.bottom, 12)
                 }
             }
             .padding(.horizontal, 20)
             .padding(.top, isToolbarVisible ? 56 : 20)
             .padding(.bottom, isToolbarVisible ? 72 : 20)
+            .overlay(shimmerOverlay)
         }
+    }
+
+    // MARK: - Shimmer Effect
+    @State private var shimmerOffset: CGFloat = -1
+
+    private var shimmerOverlay: some View {
+        GeometryReader { geometry in
+            Rectangle()
+                .fill(
+                    LinearGradient(
+                        gradient: Gradient(colors: [
+                            .clear,
+                            preferences.theme.textColor.opacity(0.08),
+                            .clear
+                        ]),
+                        startPoint: .leading,
+                        endPoint: .trailing
+                    )
+                )
+                .frame(width: geometry.size.width * 0.3)
+                .offset(x: shimmerOffset * geometry.size.width)
+                .onAppear {
+                    withAnimation(.linear(duration: 1.5).repeatForever(autoreverses: false)) {
+                        shimmerOffset = 2
+                    }
+                }
+        }
+        .allowsHitTesting(false)
     }
 
     // MARK: - Helper Methods
