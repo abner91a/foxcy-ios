@@ -39,6 +39,7 @@ struct ChapterReaderView: View {
                 if isToolbarVisible {
                     topToolbar
                         .transition(.move(edge: .top).combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.25), value: isToolbarVisible)
                 }
 
                 Spacer()
@@ -46,9 +47,9 @@ struct ChapterReaderView: View {
                 if isToolbarVisible {
                     bottomToolbar
                         .transition(.move(edge: .bottom).combined(with: .opacity))
+                        .animation(.easeInOut(duration: 0.25), value: isToolbarVisible)
                 }
             }
-            .animation(.easeInOut(duration: 0.3), value: isToolbarVisible)
         }
         .preferredColorScheme(preferences.theme.colorScheme)
         .statusBar(hidden: !isToolbarVisible)
@@ -88,7 +89,7 @@ struct ChapterReaderView: View {
             Spacer()
 
             if case .success(let content) = viewModel.state {
-                Text(content.title)
+                Text("Capítulo \(content.chapterOrder)")
                     .font(.headline)
                     .foregroundColor(preferences.theme.textColor)
                     .lineLimit(1)
@@ -204,15 +205,16 @@ struct ChapterReaderView: View {
     private var contentView: some View {
         switch viewModel.state {
         case .idle, .loading:
-            ProgressView()
-                .progressViewStyle(CircularProgressViewStyle(tint: preferences.theme.textColor))
-                .scaleEffect(1.2)
+            loadingPlaceholder
+                .contentTransition(.opacity)
 
         case .success(let content):
             readerContent(content)
+                .contentTransition(.opacity)
 
         case .failure(let error):
             errorView(error)
+                .contentTransition(.opacity)
         }
     }
 
@@ -220,14 +222,8 @@ struct ChapterReaderView: View {
     private func readerContent(_ content: ChapterContent) -> some View {
         ScrollView {
             LazyVStack(alignment: .leading, spacing: preferences.validatedLineSpacing) {
-                // Chapter header
+                // Chapter metadata only (title removed to avoid duplication with toolbar)
                 VStack(alignment: .leading, spacing: 12) {
-                    Text(content.title)
-                        .font(preferences.fontFamily.font(size: preferences.validatedFontSize + 6))
-                        .fontWeight(.bold)
-                        .foregroundColor(preferences.theme.textColor)
-                        .padding(.bottom, 4)
-
                     Text("\(content.wordCount) palabras • \(content.readingTimeMinutes) min de lectura")
                         .font(.caption)
                         .foregroundColor(preferences.theme.secondaryTextColor)
@@ -243,9 +239,9 @@ struct ChapterReaderView: View {
                         }
                 }
             }
-            .padding(24)
-            .padding(.top, isToolbarVisible ? 60 : 20)
-            .padding(.bottom, isToolbarVisible ? 80 : 20)
+            .padding(.horizontal, 20)
+            .padding(.top, isToolbarVisible ? 56 : 20)
+            .padding(.bottom, isToolbarVisible ? 72 : 20)
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -335,6 +331,36 @@ struct ChapterReaderView: View {
                     .background(Color.accentColor)
                     .cornerRadius(8)
             }
+        }
+    }
+
+    // MARK: - Loading Placeholder
+    private var loadingPlaceholder: some View {
+        ScrollView {
+            LazyVStack(alignment: .leading, spacing: preferences.validatedLineSpacing) {
+                // Skeleton header with metadata only
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("0000 palabras • 00 min de lectura")
+                        .font(.caption)
+                        .foregroundColor(preferences.theme.secondaryTextColor)
+                        .redacted(reason: .placeholder)
+                }
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, 24)
+
+                // Skeleton paragraphs
+                ForEach(0..<10, id: \.self) { _ in
+                    Text(String(repeating: "Lorem ipsum dolor sit amet, consectetur adipiscing elit. ", count: 3))
+                        .font(preferences.fontFamily.font(size: preferences.validatedFontSize))
+                        .foregroundColor(preferences.theme.textColor)
+                        .lineSpacing(preferences.validatedLineSpacing)
+                        .redacted(reason: .placeholder)
+                        .padding(.bottom, 12)
+                }
+            }
+            .padding(.horizontal, 20)
+            .padding(.top, isToolbarVisible ? 56 : 20)
+            .padding(.bottom, isToolbarVisible ? 72 : 20)
         }
     }
 
