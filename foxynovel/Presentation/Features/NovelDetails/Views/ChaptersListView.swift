@@ -70,10 +70,15 @@ struct ChaptersListView: View {
             }
         }
         .navigationDestination(isPresented: $showingChapterReader) {
-            if let chapterId = selectedChapterId {
+            if let chapterId = selectedChapterId, let novel = viewModel.novelDetails {
                 ChapterReaderView(
                     chapterId: chapterId,
-                    viewModel: chapterReaderViewModel
+                    viewModel: chapterReaderViewModel,
+                    novelId: novel.id,
+                    novelTitle: novel.title,
+                    novelCoverImage: novel.coverImage,
+                    authorName: novel.author.username,
+                    totalChapters: novel.chaptersCount
                 )
             }
         }

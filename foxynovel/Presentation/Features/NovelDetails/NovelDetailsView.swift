@@ -16,6 +16,9 @@ struct NovelDetailsView: View {
     @Environment(\.dismiss) private var dismiss
     @State private var selectedChapterId: String?
     @State private var showingChapterReader = false
+    @State private var savedProgress: ReadingProgress?
+
+    private let progressRepository = DIContainer.shared.readingProgressRepository
 
     var body: some View {
         ScrollView {
@@ -56,16 +59,24 @@ struct NovelDetailsView: View {
         .navigationBarTitleDisplayMode(.inline)
         .task {
             await viewModel.loadNovelDetails(id: novelId)
+            // Cargar progreso guardado
+            savedProgress = await progressRepository.getProgress(novelId: novelId)
         }
         .navigationDestination(isPresented: $showingChapterReader) {
-            if let chapterId = selectedChapterId {
+            if let chapterId = selectedChapterId, let novel = viewModel.novelDetails {
                 ChapterReaderView(
                     chapterId: chapterId,
-                    viewModel: chapterReaderViewModel
+                    viewModel: chapterReaderViewModel,
+                    novelId: novel.id,
+                    novelTitle: novel.title,
+                    novelCoverImage: novel.coverImage,
+                    authorName: novel.author.username,
+                    totalChapters: novel.chaptersCount
                 )
             }
         }
         .id(novelId)
+        .toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Header Section
@@ -181,14 +192,21 @@ struct NovelDetailsView: View {
     // MARK: - Action Buttons
     private var actionButtons: some View {
         VStack(spacing: Spacing.sm) {
-            // Primary action: Start reading
-            PrimaryButton(viewModel.chapters.isEmpty ? "Empezar a leer" : "Continuar leyendo") {
-                if let chapter = viewModel.startReading() {
-                    selectedChapterId = chapter.id
+            // Primary action: Continue reading or Start
+            if let progress = savedProgress {
+                PrimaryButton("Continuar leyendo - Cap. \(progress.currentChapterOrder)") {
+                    selectedChapterId = progress.currentChapterId
                     showingChapterReader = true
                 }
+            } else {
+                PrimaryButton(viewModel.chapters.isEmpty ? "Empezar a leer" : "Empezar a leer") {
+                    if let chapter = viewModel.startReading() {
+                        selectedChapterId = chapter.id
+                        showingChapterReader = true
+                    }
+                }
+                .disabled(viewModel.chapters.isEmpty)
             }
-            .disabled(viewModel.chapters.isEmpty)
 
             // Secondary actions
             HStack(spacing: Spacing.sm) {

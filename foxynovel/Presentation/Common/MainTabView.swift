@@ -20,7 +20,7 @@ struct MainTabView: View {
                 .tag(0)
 
             // Library Tab
-            LibraryPlaceholderView()
+            LibraryView()
                 .tabItem {
                     Label("Biblioteca", systemImage: "book.fill")
                 }

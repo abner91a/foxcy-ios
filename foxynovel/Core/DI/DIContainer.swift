@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import SwiftData
 
 final class DIContainer {
     static let shared = DIContainer()
@@ -47,6 +48,29 @@ final class DIContainer {
         GetNovelDetailsUseCase(
             repository: novelRepository,
             authRepository: authRepository
+        )
+    }()
+
+    // MARK: - SwiftData
+    lazy var modelContainer: ModelContainer = {
+        do {
+            let container = try ModelContainer(
+                for: ReadingProgress.self,
+                configurations: ModelConfiguration(
+                    isStoredInMemoryOnly: false
+                )
+            )
+            return container
+        } catch {
+            fatalError("Could not initialize ModelContainer: \(error)")
+        }
+    }()
+
+    lazy var readingProgressRepository: ReadingProgressRepository = {
+        ReadingProgressRepositoryImpl(
+            modelContext: modelContainer.mainContext,
+            networkClient: networkClient as! NetworkClient,
+            tokenManager: tokenManager as! TokenManager
         )
     }()
 }

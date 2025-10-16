@@ -17,11 +17,29 @@ struct ChapterReaderView: View {
     @State private var autoHideTask: Task<Void, Never>?
 
     let chapterId: String
+    let novelId: String
+    let novelTitle: String
+    let novelCoverImage: String
+    let authorName: String
+    let totalChapters: Int
 
     // MARK: - Initialization
-    init(chapterId: String, viewModel: ChapterReaderViewModel) {
+    init(
+        chapterId: String,
+        viewModel: ChapterReaderViewModel,
+        novelId: String,
+        novelTitle: String,
+        novelCoverImage: String,
+        authorName: String,
+        totalChapters: Int
+    ) {
         self.chapterId = chapterId
         self.viewModel = viewModel
+        self.novelId = novelId
+        self.novelTitle = novelTitle
+        self.novelCoverImage = novelCoverImage
+        self.authorName = authorName
+        self.totalChapters = totalChapters
         _preferences = State(initialValue: UserDefaults.standard.readingPreferences)
     }
 
@@ -56,8 +74,22 @@ struct ChapterReaderView: View {
         .preferredColorScheme(preferences.theme.colorScheme)
         .statusBar(hidden: !isToolbarVisible)
         .task {
+            // Pasar info de la novela al viewModel
+            viewModel.setNovelInfo(
+                novelId: novelId,
+                novelTitle: novelTitle,
+                coverImage: novelCoverImage,
+                authorName: authorName,
+                totalChapters: totalChapters
+            )
             await viewModel.loadChapter(id: chapterId)
             startAutoHideTimer()
+        }
+        .onDisappear {
+            // Guardar progreso final al salir
+            Task {
+                await viewModel.saveProgressOnExit()
+            }
         }
         .sheet(isPresented: $showSettings) {
             ReaderSettingsSheet(
@@ -76,6 +108,7 @@ struct ChapterReaderView: View {
                 restartAutoHideTimer()
             }
         }
+        .toolbar(.hidden, for: .tabBar)
     }
 
     // MARK: - Top Toolbar
@@ -476,6 +509,11 @@ struct ChapterReaderView: View {
             repository: NovelRepositoryImpl(
                 networkClient: NetworkClient()
             )
-        )
+        ),
+        novelId: "sample-novel-id",
+        novelTitle: "Sample Novel",
+        novelCoverImage: "",
+        authorName: "Sample Author",
+        totalChapters: 100
     )
 }

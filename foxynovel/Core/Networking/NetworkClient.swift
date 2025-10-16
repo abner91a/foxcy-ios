@@ -113,4 +113,5 @@ protocol TokenProvider {
     func getToken() -> String?
     func saveToken(_ token: String)
     func removeToken()
+    func isTokenValid() -> Bool
 }
