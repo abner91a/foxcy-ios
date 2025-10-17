@@ -91,7 +91,7 @@ struct ReadingPreferences: Codable, Equatable {
     static let `default` = ReadingPreferences(
         fontSize: 18,
         fontFamily: .serif,
-        lineSpacing: 8,
+        lineSpacing: 6,
         paragraphSpacing: 16,
         theme: .light,
         autoHideToolbar: true,
@@ -120,9 +120,11 @@ struct ReadingPreferences: Codable, Equatable {
 
     // Computed paragraph spacing based on font size for responsive design
     var computedParagraphSpacing: CGFloat {
-        // Aumentado para mejor legibilidad: 1.2x fontSize (antes era 0.8x)
-        // Esto da ~21pt para fontSize 18, similar a Kindle/Wattpad
-        let basedOnFont = validatedFontSize * 1.2
+        // Fórmula optimizada: 1.3x fontSize
+        // Con fontSize 18: 18 * 1.3 = 23.4pt
+        // Total gap con lineSpacing 6: 6 + 23.4 = 29.4pt (óptimo para lectura)
+        // Similar a Kindle/Wattpad/Apple Books
+        let basedOnFont = validatedFontSize * 1.3
         return max(16, min(basedOnFont, 36))
     }
 }
