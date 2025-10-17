@@ -182,6 +182,34 @@ struct ReaderSettingsSheet: View {
                     Text("La barra se ocultará automáticamente después del tiempo especificado")
                 }
 
+                // Navigation by Scroll Section
+                Section {
+                    Toggle("Navegar deslizando", isOn: $localPreferences.scrollToNextChapter)
+                        .tint(.accentColor)
+
+                    if localPreferences.scrollToNextChapter {
+                        VStack(alignment: .leading, spacing: 12) {
+                            HStack {
+                                Text("Umbral de activación")
+                                Spacer()
+                                Text("\(Int(localPreferences.scrollThreshold * 100))%")
+                                    .foregroundColor(.secondary)
+                            }
+
+                            Slider(value: $localPreferences.scrollThreshold, in: 0.8...0.95, step: 0.05)
+                                .accentColor(.accentColor)
+
+                            Text("El siguiente capítulo se cargará automáticamente al llegar al \(Int(localPreferences.scrollThreshold * 100))% del capítulo actual")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                    }
+                } header: {
+                    Text("Navegación por Scroll")
+                } footer: {
+                    Text("Carga automáticamente el siguiente capítulo al llegar al final del capítulo actual")
+                }
+
                 // Reset Section
                 Section {
                     Button(action: {

@@ -17,6 +17,8 @@ struct ReadingPreferences: Codable, Equatable {
     var autoHideToolbar: Bool
     var autoHideDelay: TimeInterval
     var brightness: Double
+    var scrollToNextChapter: Bool
+    var scrollThreshold: Double
 
     static let `default` = ReadingPreferences(
         fontSize: 18,
@@ -25,7 +27,9 @@ struct ReadingPreferences: Codable, Equatable {
         theme: .light,
         autoHideToolbar: true,
         autoHideDelay: 3.0,
-        brightness: 1.0
+        brightness: 1.0,
+        scrollToNextChapter: false,
+        scrollThreshold: 0.9
     )
 
     // Validation

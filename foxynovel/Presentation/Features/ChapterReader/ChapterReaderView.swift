@@ -16,6 +16,9 @@ struct ChapterReaderView: View {
     @State private var showSettings = false
     @State private var autoHideTask: Task<Void, Never>?
 
+    // Scroll navigation properties (continuous scroll)
+    @State private var scrollProgress: CGFloat = 0.0
+
     let chapterId: String
     let novelId: String
     let novelTitle: String
@@ -68,6 +71,7 @@ struct ChapterReaderView: View {
                         .animation(.easeInOut(duration: 0.25), value: isToolbarVisible)
                 }
             }
+
         }
         .navigationBarTitleDisplayMode(.inline)
         .navigationBarBackButtonHidden(false)
@@ -82,7 +86,7 @@ struct ChapterReaderView: View {
                 authorName: authorName,
                 totalChapters: totalChapters
             )
-            await viewModel.loadChapter(id: chapterId)
+            await viewModel.loadInitialChapter(id: chapterId)
             startAutoHideTimer()
         }
         .onDisappear {
@@ -116,8 +120,8 @@ struct ChapterReaderView: View {
         HStack {
             Spacer()
 
-            if case .success(let content) = viewModel.state {
-                Text("Capítulo \(content.chapterOrder)")
+            if let currentChapter = viewModel.currentChapter {
+                Text("Capítulo \(currentChapter.chapterOrder)")
                     .font(.headline)
                     .foregroundColor(preferences.theme.textColor)
                     .lineLimit(1)
@@ -141,7 +145,7 @@ struct ChapterReaderView: View {
     // MARK: - Bottom Toolbar
     private var bottomToolbar: some View {
         VStack(spacing: 0) {
-            if case .success = viewModel.state {
+            if !viewModel.chapters.isEmpty {
                 // Progress bar
                 GeometryReader { geometry in
                     ZStack(alignment: .leading) {
@@ -231,37 +235,68 @@ struct ChapterReaderView: View {
     // MARK: - Content View
     @ViewBuilder
     private var contentView: some View {
-        switch viewModel.state {
-        case .idle, .loading:
+        if viewModel.isLoadingChapter && viewModel.chapters.isEmpty {
             loadingPlaceholder
-
-        case .success(let content):
-            readerContent(content)
-
-        case .failure(let error):
+        } else if let error = viewModel.loadingError, viewModel.chapters.isEmpty {
             errorView(error)
+        } else if !viewModel.chapters.isEmpty {
+            continuousReaderContent
+        } else {
+            loadingPlaceholder
         }
     }
 
-    // MARK: - Reader Content
-    private func readerContent(_ content: ChapterContent) -> some View {
+    // MARK: - Continuous Reader Content
+    private var continuousReaderContent: some View {
         ScrollView {
-            LazyVStack(alignment: .leading, spacing: preferences.validatedLineSpacing) {
-                // Chapter metadata only (title removed to avoid duplication with toolbar)
-                VStack(alignment: .leading, spacing: 12) {
-                    Text("\(content.wordCount) palabras • \(content.readingTimeMinutes) min de lectura")
-                        .font(.caption)
-                        .foregroundColor(preferences.theme.secondaryTextColor)
-                }
-                .frame(maxWidth: .infinity, alignment: .leading)
-                .padding(.bottom, 24)
-
-                // Content segments
-                ForEach(Array(content.contentSegments.enumerated()), id: \.offset) { index, segment in
-                    segmentView(segment)
-                        .onAppear {
-                            viewModel.updateReadingProgress(segmentIndex: index, totalSegments: content.contentSegments.count)
+            LazyVStack(alignment: .leading, spacing: 0) {
+                ForEach(Array(viewModel.chapters.enumerated()), id: \.element.id) { chapterIndex, chapter in
+                    VStack(alignment: .leading, spacing: 0) {
+                        // Chapter header (skip for first chapter)
+                        if chapterIndex > 0 {
+                            chapterHeader(chapter)
                         }
+
+                        // Chapter metadata
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("\(chapter.wordCount) palabras • \(chapter.readingTimeMinutes) min de lectura")
+                                .font(.caption)
+                                .foregroundColor(preferences.theme.secondaryTextColor)
+                        }
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding(.bottom, 24)
+
+                        // Content segments
+                        ForEach(Array(chapter.contentSegments.enumerated()), id: \.offset) { segmentIndex, segment in
+                            segmentView(segment)
+                                .onAppear {
+                                    viewModel.updateReadingProgress(
+                                        segmentIndex: segmentIndex,
+                                        totalSegments: chapter.contentSegments.count
+                                    )
+                                }
+                        }
+
+                        // Chapter divider (except for last chapter)
+                        if chapterIndex < viewModel.chapters.count - 1 {
+                            chapterDivider
+                        }
+                    }
+                    .id(chapter.id)
+                }
+
+                // Load more trigger
+                if preferences.scrollToNextChapter && viewModel.canLoadNext {
+                    Color.clear
+                        .frame(height: 200)
+                        .onAppear {
+                            handleLoadMoreTrigger()
+                        }
+                }
+
+                // Inline loading indicator
+                if viewModel.isLoadingChapter {
+                    chapterLoadingView
                 }
             }
             .padding(.horizontal, 20)
@@ -288,12 +323,10 @@ struct ChapterReaderView: View {
                     // Only trigger if horizontal swipe is dominant
                     if abs(horizontalAmount) > abs(verticalAmount) {
                         if horizontalAmount > 0 && canNavigatePrevious {
-                            // Swipe right -> previous chapter
                             Task {
                                 await viewModel.navigateToPreviousChapter()
                             }
-                        } else if horizontalAmount < 0 && canNavigateNext {
-                            // Swipe left -> next chapter
+                        } else if horizontalAmount < 0 && canNavigateNext && !preferences.scrollToNextChapter {
                             Task {
                                 await viewModel.navigateToNextChapter()
                             }
@@ -301,6 +334,45 @@ struct ChapterReaderView: View {
                     }
                 }
         )
+    }
+
+    // MARK: - Chapter Header
+    private func chapterHeader(_ chapter: ChapterContent) -> some View {
+        VStack(spacing: 8) {
+            HStack {
+                Image(systemName: "chevron.down")
+                    .font(.caption)
+                    .foregroundColor(preferences.theme.secondaryTextColor)
+                Text("Capítulo \(chapter.chapterOrder)")
+                    .font(.headline)
+                    .foregroundColor(preferences.theme.textColor)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, 16)
+        }
+    }
+
+    // MARK: - Chapter Divider
+    private var chapterDivider: some View {
+        VStack(spacing: 16) {
+            Divider()
+                .background(preferences.theme.secondaryTextColor.opacity(0.3))
+                .padding(.vertical, 32)
+        }
+    }
+
+    // MARK: - Chapter Loading View
+    private var chapterLoadingView: some View {
+        VStack(spacing: 12) {
+            ProgressView()
+                .tint(preferences.theme.textColor)
+
+            Text("Cargando siguiente capítulo...")
+                .font(.caption)
+                .foregroundColor(preferences.theme.secondaryTextColor)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.vertical, 40)
     }
 
     // MARK: - Segment View
@@ -344,7 +416,7 @@ struct ChapterReaderView: View {
 
             Button(action: {
                 Task {
-                    await viewModel.loadChapter(id: chapterId)
+                    await viewModel.loadInitialChapter(id: chapterId)
                 }
             }) {
                 Text("Reintentar")
@@ -440,17 +512,11 @@ struct ChapterReaderView: View {
     }
 
     private var canNavigatePrevious: Bool {
-        if case .success(let content) = viewModel.state {
-            return content.hasPreviousChapter
-        }
-        return false
+        viewModel.currentChapter?.hasPreviousChapter ?? false
     }
 
     private var canNavigateNext: Bool {
-        if case .success(let content) = viewModel.state {
-            return content.hasNextChapter
-        }
-        return false
+        viewModel.currentChapter?.hasNextChapter ?? false
     }
 
     private func savePreferences() {
@@ -497,6 +563,22 @@ struct ChapterReaderView: View {
     private func restartAutoHideTimer() {
         if isToolbarVisible {
             startAutoHideTimer()
+        }
+    }
+
+    // MARK: - Scroll Navigation Helpers
+    private func handleLoadMoreTrigger() {
+        guard preferences.scrollToNextChapter,
+              viewModel.canLoadNext,
+              !viewModel.isLoadingChapter else { return }
+
+        Task {
+            // Trigger haptic feedback
+            let generator = UIImpactFeedbackGenerator(style: .light)
+            generator.impactOccurred()
+
+            // Load next chapter (appends to array)
+            await viewModel.loadNextChapterAppend()
         }
     }
 }

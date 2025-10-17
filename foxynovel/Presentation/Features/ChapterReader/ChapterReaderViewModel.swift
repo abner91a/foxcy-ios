@@ -11,7 +11,10 @@ import Combine
 @MainActor
 final class ChapterReaderViewModel: ObservableObject {
     // MARK: - Published Properties
-    @Published private(set) var state: LoadingState<ChapterContent> = .loading
+    @Published private(set) var chapters: [ChapterContent] = []
+    @Published private(set) var isLoadingChapter: Bool = false
+    @Published private(set) var loadingError: Error? = nil
+    @Published private(set) var canLoadNext: Bool = true
     @Published private(set) var currentChapterId: String = ""
     @Published private(set) var readingProgress: Float = 0.0
 
@@ -34,17 +37,49 @@ final class ChapterReaderViewModel: ObservableObject {
     }
 
     // MARK: - Public Methods
-    func loadChapter(id: String) async {
+    func loadInitialChapter(id: String) async {
         currentChapterId = id
-        state = .loading
+        chapters = []
+        isLoadingChapter = true
+        loadingError = nil
+        canLoadNext = true
         readingProgress = 0.0
 
         do {
             let content = try await repository.getChapterContent(chapterId: id)
-            state = .success(content)
+            chapters.append(content)
+            canLoadNext = content.hasNextChapter
+            isLoadingChapter = false
         } catch {
-            state = .failure(error)
+            loadingError = error
+            isLoadingChapter = false
         }
+    }
+
+    func loadNextChapterAppend() async {
+        guard !isLoadingChapter,
+              canLoadNext,
+              let lastChapter = chapters.last,
+              let nextId = lastChapter.nextChapterId else {
+            return
+        }
+
+        isLoadingChapter = true
+
+        do {
+            let nextContent = try await repository.getChapterContent(chapterId: nextId)
+            chapters.append(nextContent)
+            canLoadNext = nextContent.hasNextChapter
+            currentChapterId = nextId
+            isLoadingChapter = false
+        } catch {
+            loadingError = error
+            isLoadingChapter = false
+        }
+    }
+
+    var currentChapter: ChapterContent? {
+        chapters.first(where: { $0.id == currentChapterId }) ?? chapters.first
     }
 
     func updateReadingProgress(segmentIndex: Int, totalSegments: Int) {
@@ -70,7 +105,7 @@ final class ChapterReaderViewModel: ObservableObject {
     }
 
     func saveProgressOnExit() async {
-        guard case .success(let content) = state else { return }
+        guard let content = currentChapter else { return }
         await saveProgress(progress: 1.0, chapterCompleted: true)
     }
 
@@ -78,7 +113,7 @@ final class ChapterReaderViewModel: ObservableObject {
 
     private func saveProgress(progress: Double, chapterCompleted: Bool = false) async {
         guard !currentNovelId.isEmpty,
-              case .success(let content) = state else {
+              let content = currentChapter else {
             return
         }
 
@@ -115,19 +150,19 @@ final class ChapterReaderViewModel: ObservableObject {
     }
 
     func navigateToPreviousChapter() async {
-        guard case .success(let content) = state,
+        guard let content = currentChapter,
               let previousId = content.previousChapterId else {
             return
         }
-        await loadChapter(id: previousId)
+        await loadInitialChapter(id: previousId)
     }
 
     func navigateToNextChapter() async {
-        guard case .success(let content) = state,
+        guard let content = currentChapter,
               let nextId = content.nextChapterId else {
             return
         }
-        await loadChapter(id: nextId)
+        await loadInitialChapter(id: nextId)
     }
 }
 
