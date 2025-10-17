@@ -1,0 +1,56 @@
+{
+  "source": "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/ChapterReader/ChapterReaderView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Capítulo %lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 138
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld palabras • %lld min de lectura",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 277
+        }
+      },
+      {
+        "comment": "",
+        "key": "Capítulo %lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 371
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cargando siguiente capítulo...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 395
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error al cargar el capítulo",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 431
+        }
+      },
+      {
+        "comment": "",
+        "key": "Reintentar",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 447
+        }
+      }
+    ]
+  },
+  "version": 1
+}

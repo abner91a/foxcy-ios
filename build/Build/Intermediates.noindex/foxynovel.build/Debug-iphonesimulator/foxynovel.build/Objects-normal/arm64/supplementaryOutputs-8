@@ -1,0 +1,44 @@
+{
+  "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/ChapterReader/ChaptersListSheet.swift" : {
+    "const-values" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/ChaptersListSheet.swiftconstvalues",
+    "dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/ChaptersListSheet.d",
+    "diagnostics" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/ChaptersListSheet.dia",
+    "object" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/ChaptersListSheet.o",
+    "swift-dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/ChaptersListSheet.swiftdeps"
+  },
+  "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/Home/HomeView.swift" : {
+    "const-values" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeView.swiftconstvalues",
+    "dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeView.d",
+    "diagnostics" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeView.dia",
+    "object" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeView.o",
+    "swift-dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeView.swiftdeps"
+  },
+  "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/Home/HomeViewModel.swift" : {
+    "const-values" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeViewModel.swiftconstvalues",
+    "dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeViewModel.d",
+    "diagnostics" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeViewModel.dia",
+    "object" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeViewModel.o",
+    "swift-dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/HomeViewModel.swiftdeps"
+  },
+  "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/Library/LibraryNovelCard.swift" : {
+    "const-values" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryNovelCard.swiftconstvalues",
+    "dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryNovelCard.d",
+    "diagnostics" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryNovelCard.dia",
+    "object" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryNovelCard.o",
+    "swift-dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryNovelCard.swiftdeps"
+  },
+  "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/Library/LibraryView.swift" : {
+    "const-values" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryView.swiftconstvalues",
+    "dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryView.d",
+    "diagnostics" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryView.dia",
+    "object" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryView.o",
+    "swift-dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryView.swiftdeps"
+  },
+  "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/Library/LibraryViewModel.swift" : {
+    "const-values" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryViewModel.swiftconstvalues",
+    "dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryViewModel.d",
+    "diagnostics" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryViewModel.dia",
+    "object" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryViewModel.o",
+    "swift-dependencies" : "/Users/abner/Desktop/kotlin/foxynovel/build/Build/Intermediates.noindex/foxynovel.build/Debug-iphonesimulator/foxynovel.build/Objects-normal/arm64/LibraryViewModel.swiftdeps"
+  }
+}

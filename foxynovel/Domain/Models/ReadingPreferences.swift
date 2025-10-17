@@ -13,6 +13,7 @@ struct ReadingPreferences: Codable, Equatable {
     var fontSize: CGFloat
     var fontFamily: FontFamily
     var lineSpacing: CGFloat
+    var paragraphSpacing: CGFloat
     var theme: ReadingTheme
     var autoHideToolbar: Bool
     var autoHideDelay: TimeInterval
@@ -20,10 +21,78 @@ struct ReadingPreferences: Codable, Equatable {
     var scrollToNextChapter: Bool
     var scrollThreshold: Double
 
+    // CodingKeys for custom encoding/decoding
+    enum CodingKeys: String, CodingKey {
+        case fontSize, fontFamily, lineSpacing, paragraphSpacing
+        case theme, autoHideToolbar, autoHideDelay, brightness
+        case scrollToNextChapter, scrollThreshold
+    }
+
+    // Custom decoder to handle migration from old data without paragraphSpacing
+    init(from decoder: Decoder) throws {
+        let container = try decoder.container(keyedBy: CodingKeys.self)
+
+        fontSize = try container.decode(CGFloat.self, forKey: .fontSize)
+        fontFamily = try container.decode(FontFamily.self, forKey: .fontFamily)
+        lineSpacing = try container.decode(CGFloat.self, forKey: .lineSpacing)
+
+        // Migration: Use default value if paragraphSpacing doesn't exist in old data
+        paragraphSpacing = try container.decodeIfPresent(CGFloat.self, forKey: .paragraphSpacing) ?? 16
+
+        theme = try container.decode(ReadingTheme.self, forKey: .theme)
+        autoHideToolbar = try container.decode(Bool.self, forKey: .autoHideToolbar)
+        autoHideDelay = try container.decode(TimeInterval.self, forKey: .autoHideDelay)
+        brightness = try container.decode(Double.self, forKey: .brightness)
+        scrollToNextChapter = try container.decode(Bool.self, forKey: .scrollToNextChapter)
+        scrollThreshold = try container.decode(Double.self, forKey: .scrollThreshold)
+    }
+
+    // Custom encoder for symmetry
+    func encode(to encoder: Encoder) throws {
+        var container = encoder.container(keyedBy: CodingKeys.self)
+
+        try container.encode(fontSize, forKey: .fontSize)
+        try container.encode(fontFamily, forKey: .fontFamily)
+        try container.encode(lineSpacing, forKey: .lineSpacing)
+        try container.encode(paragraphSpacing, forKey: .paragraphSpacing)
+        try container.encode(theme, forKey: .theme)
+        try container.encode(autoHideToolbar, forKey: .autoHideToolbar)
+        try container.encode(autoHideDelay, forKey: .autoHideDelay)
+        try container.encode(brightness, forKey: .brightness)
+        try container.encode(scrollToNextChapter, forKey: .scrollToNextChapter)
+        try container.encode(scrollThreshold, forKey: .scrollThreshold)
+    }
+
+    // Manual initializer for creating instances programmatically
+    init(
+        fontSize: CGFloat,
+        fontFamily: FontFamily,
+        lineSpacing: CGFloat,
+        paragraphSpacing: CGFloat,
+        theme: ReadingTheme,
+        autoHideToolbar: Bool,
+        autoHideDelay: TimeInterval,
+        brightness: Double,
+        scrollToNextChapter: Bool,
+        scrollThreshold: Double
+    ) {
+        self.fontSize = fontSize
+        self.fontFamily = fontFamily
+        self.lineSpacing = lineSpacing
+        self.paragraphSpacing = paragraphSpacing
+        self.theme = theme
+        self.autoHideToolbar = autoHideToolbar
+        self.autoHideDelay = autoHideDelay
+        self.brightness = brightness
+        self.scrollToNextChapter = scrollToNextChapter
+        self.scrollThreshold = scrollThreshold
+    }
+
     static let `default` = ReadingPreferences(
         fontSize: 18,
         fontFamily: .serif,
         lineSpacing: 8,
+        paragraphSpacing: 16,
         theme: .light,
         autoHideToolbar: true,
         autoHideDelay: 3.0,
@@ -41,8 +110,20 @@ struct ReadingPreferences: Codable, Equatable {
         min(max(lineSpacing, 4), 16)
     }
 
+    var validatedParagraphSpacing: CGFloat {
+        min(max(paragraphSpacing, 8), 24)
+    }
+
     var validatedBrightness: Double {
         min(max(brightness, 0.3), 1.0)
+    }
+
+    // Computed paragraph spacing based on font size for responsive design
+    var computedParagraphSpacing: CGFloat {
+        // Aumentado para mejor legibilidad: 1.2x fontSize (antes era 0.8x)
+        // Esto da ~21pt para fontSize 18, similar a Kindle/Wattpad
+        let basedOnFont = validatedFontSize * 1.2
+        return max(16, min(basedOnFont, 36))
     }
 }
 

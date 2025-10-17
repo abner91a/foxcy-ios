@@ -1,0 +1,406 @@
+//
+//  NovelDetailsView.swift
+//  foxynovel
+//
+//  Created by Claude on 14/10/25.
+//
+
+import SwiftUI
+
+struct NovelDetailsView: View {
+    let novelId: String
+    @StateObject private var viewModel = NovelDetailsViewModel()
+    @Environment(\.dismiss) private var dismiss
+    @State private var selectedChapterId: String?
+    @State private var showingChapterReader = false
+
+    var body: some View {
+        ScrollView {
+            VStack(spacing: 0) {
+                if viewModel.isLoading {
+                    loadingView
+                } else if let error = viewModel.errorMessage {
+                    errorView(message: error)
+                } else if let novel = viewModel.novelDetails {
+                    novelContent(novel)
+                }
+            }
+        }
+        .background(Color.background.ignoresSafeArea())
+        .navigationBarTitleDisplayMode(.inline)
+        .task {
+            await viewModel.loadNovelDetails(id: novelId)
+        }
+        .sheet(isPresented: $showingChapterReader) {
+            if let chapterId = selectedChapterId {
+                // TODO: Replace with ChapterReaderView when implemented
+                Text("Chapter Reader: \(chapterId)")
+            }
+        }
+    }
+
+    // MARK: - Novel Content
+    @ViewBuilder
+    private func novelContent(_ novel: NovelDetails) -> some View {
+        VStack(spacing: 0) {
+            // Header with cover image
+            headerSection(novel)
+
+            // Main info section
+            VStack(spacing: Spacing.lg) {
+                // Title and author
+                titleSection(novel)
+
+                // Stats row
+                statsSection(novel)
+
+                // Action buttons
+                actionButtons
+
+                // Description
+                descriptionSection(novel)
+
+                // Genre and tags
+                if !novel.genre.name.isEmpty || !novel.tags.isEmpty {
+                    genreTagsSection(novel)
+                }
+
+                // Chapters list
+                chaptersSection
+            }
+            .padding(.horizontal, Spacing.screenPadding)
+            .padding(.vertical, Spacing.lg)
+        }
+    }
+
+    // MARK: - Header Section
+    private func headerSection(_ novel: NovelDetails) -> some View {
+        ZStack(alignment: .bottom) {
+            // Cover image with gradient overlay
+            AsyncImage(url: URL(string: novel.coverImage)) { image in
+                image
+                    .resizable()
+                    .aspectRatio(contentMode: .fill)
+            } placeholder: {
+                Rectangle()
+                    .fill(Color.secondary.opacity(0.2))
+            }
+            .frame(height: 400)
+            .clipped()
+
+            // Gradient overlay
+            LinearGradient(
+                colors: [Color.clear, Color.background],
+                startPoint: .top,
+                endPoint: .bottom
+            )
+            .frame(height: 200)
+        }
+    }
+
+    // MARK: - Title Section
+    private func titleSection(_ novel: NovelDetails) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text(novel.title)
+                .typography(Typography.displaySmall)
+                .multilineTextAlignment(.leading)
+
+            HStack(spacing: Spacing.xs) {
+                if let profileImage = novel.author.profileImage, !profileImage.isEmpty {
+                    AsyncImage(url: URL(string: profileImage)) { image in
+                        image.resizable().scaledToFill()
+                    } placeholder: {
+                        Circle().fill(Color.secondary.opacity(0.3))
+                    }
+                    .frame(width: 24, height: 24)
+                    .clipShape(Circle())
+                }
+
+                Text("Por \(novel.author.username)")
+                    .typography(Typography.bodyMedium, color: .textSecondary)
+
+                Spacer()
+
+                // Status badge
+                Text(novel.status == .completed ? "Completada" : "En curso")
+                    .typography(Typography.labelSmall)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xs)
+                    .background(novel.status == .completed ? Color.success.opacity(0.2) : Color.accent.opacity(0.2))
+                    .foregroundColor(novel.status == .completed ? Color.success : Color.accent)
+                    .cornerRadius(12)
+            }
+        }
+    }
+
+    // MARK: - Stats Section
+    private func statsSection(_ novel: NovelDetails) -> some View {
+        HStack(spacing: Spacing.lg) {
+            statItem(
+                icon: "star.fill",
+                value: String(format: "%.1f", novel.rating),
+                label: "\(novel.ratingsCount) valoraciones"
+            )
+
+            Divider()
+                .frame(height: 30)
+
+            statItem(
+                icon: "eye.fill",
+                value: formatNumber(novel.views),
+                label: "vistas"
+            )
+
+            Divider()
+                .frame(height: 30)
+
+            statItem(
+                icon: "book.fill",
+                value: "\(novel.chaptersCount)",
+                label: "capítulos"
+            )
+        }
+        .padding(.vertical, Spacing.md)
+        .padding(.horizontal, Spacing.lg)
+        .background(Color.surface)
+        .cornerRadius(16)
+    }
+
+    private func statItem(icon: String, value: String, label: String) -> some View {
+        VStack(spacing: Spacing.xs) {
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.caption)
+                    .foregroundColor(.accent)
+                Text(value)
+                    .typography(Typography.titleMedium)
+            }
+            Text(label)
+                .typography(Typography.labelSmall, color: .textSecondary)
+        }
+        .frame(maxWidth: .infinity)
+    }
+
+    // MARK: - Action Buttons
+    private var actionButtons: some View {
+        VStack(spacing: Spacing.sm) {
+            // Primary action: Start reading
+            PrimaryButton(viewModel.chapters.isEmpty ? "Empezar a leer" : "Continuar leyendo") {
+                if let chapter = viewModel.startReading() {
+                    selectedChapterId = chapter.id
+                    showingChapterReader = true
+                }
+            }
+            .disabled(viewModel.chapters.isEmpty)
+
+            // Secondary actions
+            HStack(spacing: Spacing.sm) {
+                secondaryButton(
+                    icon: viewModel.isFavorite ? "heart.fill" : "heart",
+                    label: "Favorito",
+                    color: viewModel.isFavorite ? .red : .textSecondary
+                ) {
+                    Task {
+                        await viewModel.toggleFavorite()
+                    }
+                }
+
+                secondaryButton(
+                    icon: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
+                    label: "Me gusta",
+                    color: viewModel.isLiked ? .accent : .textSecondary
+                ) {
+                    Task {
+                        await viewModel.toggleLike()
+                    }
+                }
+
+                secondaryButton(
+                    icon: "square.and.arrow.up",
+                    label: "Compartir",
+                    color: .textSecondary
+                ) {
+                    viewModel.shareNovel()
+                }
+            }
+        }
+    }
+
+    private func secondaryButton(icon: String, label: String, color: Color, action: @escaping () -> Void) -> some View {
+        Button(action: action) {
+            VStack(spacing: Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.title3)
+                Text(label)
+                    .typography(Typography.labelMedium)
+            }
+            .frame(maxWidth: .infinity)
+            .padding(.vertical, Spacing.sm)
+            .foregroundColor(color)
+            .background(Color.surface)
+            .cornerRadius(12)
+        }
+    }
+
+    // MARK: - Description Section
+    private func descriptionSection(_ novel: NovelDetails) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("Descripción")
+                .typography(Typography.titleMedium)
+
+            Text(novel.description)
+                .typography(Typography.bodyMedium, color: .textSecondary)
+                .lineSpacing(4)
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    // MARK: - Genre & Tags Section
+    private func genreTagsSection(_ novel: NovelDetails) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            Text("Género y Etiquetas")
+                .typography(Typography.titleMedium)
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                HStack(spacing: Spacing.xs) {
+                    // Genre chip
+                    chipView(text: novel.genre.name, isPrimary: true)
+
+                    // Tags
+                    ForEach(novel.tags, id: \.id) { tag in
+                        chipView(text: tag.name, isPrimary: false)
+                    }
+                }
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+    }
+
+    private func chipView(text: String, isPrimary: Bool) -> some View {
+        Text(text)
+            .typography(Typography.labelMedium)
+            .padding(.horizontal, Spacing.sm)
+            .padding(.vertical, Spacing.xs)
+            .background(isPrimary ? Color.accent.opacity(0.15) : Color.surface)
+            .foregroundColor(isPrimary ? Color.accent : Color.textSecondary)
+            .cornerRadius(16)
+    }
+
+    // MARK: - Chapters Section
+    private var chaptersSection: some View {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack {
+                Text("Capítulos")
+                    .typography(Typography.titleMedium)
+
+                Spacer()
+
+                Text("\(viewModel.chapters.count) capítulos")
+                    .typography(Typography.labelMedium, color: .textSecondary)
+            }
+
+            if viewModel.chapters.isEmpty {
+                Text("No hay capítulos disponibles")
+                    .typography(Typography.bodyMedium, color: .textSecondary)
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.xxl)
+            } else {
+                LazyVStack(spacing: Spacing.xs) {
+                    ForEach(viewModel.chapters, id: \.id) { chapter in
+                        chapterRow(chapter)
+                    }
+                }
+            }
+        }
+    }
+
+    private func chapterRow(_ chapter: ChapterInfo) -> some View {
+        Button {
+            selectedChapterId = chapter.id
+            showingChapterReader = true
+        } label: {
+            HStack(spacing: Spacing.sm) {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text(chapter.title)
+                        .typography(Typography.bodyLarge)
+                        .foregroundColor(.textPrimary)
+                        .multilineTextAlignment(.leading)
+
+                    if let readingTime = chapter.readingTimeMinutes {
+                        Text("\(readingTime) min de lectura")
+                            .typography(Typography.labelSmall, color: .textSecondary)
+                    }
+                }
+
+                Spacer()
+
+                if chapter.isRead {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundColor(.success)
+                }
+
+                Image(systemName: "chevron.right")
+                    .font(.caption)
+                    .foregroundColor(.textSecondary)
+            }
+            .padding(.horizontal, Spacing.md)
+            .padding(.vertical, Spacing.sm)
+            .background(Color.surface)
+            .cornerRadius(12)
+        }
+    }
+
+    // MARK: - Loading View
+    private var loadingView: some View {
+        VStack(spacing: Spacing.md) {
+            ProgressView()
+                .scaleEffect(1.5)
+
+            Text("Cargando detalles...")
+                .typography(Typography.bodyMedium, color: .textSecondary)
+        }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
+        .padding(.top, 100)
+    }
+
+    // MARK: - Error View
+    private func errorView(message: String) -> some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "exclamationmark.triangle")
+                .font(.system(size: 50))
+                .foregroundColor(.error)
+
+            Text("Error")
+                .typography(Typography.titleLarge)
+
+            Text(message)
+                .typography(Typography.bodyMedium, color: .textSecondary)
+                .multilineTextAlignment(.center)
+
+            PrimaryButton("Reintentar") {
+                Task {
+                    await viewModel.loadNovelDetails(id: novelId)
+                }
+            }
+            .padding(.horizontal, Spacing.xxl)
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.top, 100)
+    }
+
+    // MARK: - Helpers
+    private func formatNumber(_ number: Int) -> String {
+        if number >= 1000000 {
+            return String(format: "%.1fM", Double(number) / 1000000.0)
+        } else if number >= 1000 {
+            return String(format: "%.1fK", Double(number) / 1000.0)
+        }
+        return "\(number)"
+    }
+}
+
+#Preview {
+    NavigationStack {
+        NovelDetailsView(novelId: "0198f4f3-fb02-7781-b0d6-0c014b868bb8")
+    }
+}

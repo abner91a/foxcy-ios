@@ -1,0 +1,64 @@
+{
+  "source": "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/Library/LibraryView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Mi Biblioteca",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 36
+        }
+      },
+      {
+        "comment": "",
+        "key": "Eliminar",
+        "location": {
+          "startingColumn": 43,
+          "startingLine": 78
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 106
+        }
+      },
+      {
+        "comment": "",
+        "key": "Tu biblioteca está vacía",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 141
+        }
+      },
+      {
+        "comment": "",
+        "key": "Empieza a leer para ver tus novelas aquí",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 144
+        }
+      },
+      {
+        "comment": "",
+        "key": "💡 Inicia sesión para sincronizar\ntu progreso en todos tus dispositivos",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 154
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cargando biblioteca...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 172
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -1,0 +1,16 @@
+{
+  "source": "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Common/Components/ChapterRow.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "%lld min de lectura",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 24
+        }
+      }
+    ]
+  },
+  "version": 1
+}

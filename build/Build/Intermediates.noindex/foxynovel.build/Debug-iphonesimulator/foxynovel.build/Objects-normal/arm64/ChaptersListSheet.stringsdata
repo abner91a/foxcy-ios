@@ -1,0 +1,72 @@
+{
+  "source": "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/ChapterReader/ChaptersListSheet.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Capítulos",
+        "location": {
+          "startingColumn": 30,
+          "startingLine": 26
+        }
+      },
+      {
+        "comment": "",
+        "key": "Buscar capítulos...",
+        "location": {
+          "startingColumn": 21,
+          "startingLine": 74
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cerrar",
+        "location": {
+          "startingColumn": 28,
+          "startingLine": 30
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cargando capítulos...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 104
+        }
+      },
+      {
+        "comment": "",
+        "key": "No hay capítulos disponibles",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 117
+        }
+      },
+      {
+        "comment": "",
+        "key": "Vuelve pronto para ver nuevos capítulos",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 121
+        }
+      },
+      {
+        "comment": "",
+        "key": "Capítulo %lld",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 191
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld palabras • %lld min",
+        "location": {
+          "startingColumn": 26,
+          "startingLine": 202
+        }
+      }
+    ]
+  },
+  "version": 1
+}

@@ -158,6 +158,45 @@ struct ReaderSettingsSheet: View {
                     }
                 }
 
+                // Paragraph Spacing Section
+                Section {
+                    VStack(alignment: .leading, spacing: 16) {
+                        HStack {
+                            Image(systemName: "paragraph")
+                                .font(.caption)
+                                .foregroundColor(localPreferences.theme.secondaryTextColor)
+
+                            Slider(value: $localPreferences.paragraphSpacing, in: 8...24, step: 2)
+                                .accentColor(.accentColor)
+
+                            Image(systemName: "paragraph")
+                                .font(.body)
+                                .foregroundColor(localPreferences.theme.secondaryTextColor)
+                        }
+
+                        VStack(alignment: .leading, spacing: localPreferences.paragraphSpacing) {
+                            Text("Primer párrafo de ejemplo. Este es el contenido del primer párrafo para mostrar el espaciado.")
+                            Text("Segundo párrafo de ejemplo. Aquí puedes ver cómo se separan los párrafos con el espaciado seleccionado.")
+                            Text("Tercer párrafo de ejemplo. Ajusta el espaciado hasta encontrar tu preferencia de lectura.")
+                        }
+                        .font(.caption)
+                        .foregroundColor(localPreferences.theme.textColor)
+                        .frame(maxWidth: .infinity, alignment: .leading)
+                        .padding()
+                        .background(localPreferences.theme.backgroundColor)
+                        .cornerRadius(8)
+                    }
+                } header: {
+                    HStack {
+                        Text("Espaciado entre Párrafos")
+                        Spacer()
+                        Text("\(Int(localPreferences.paragraphSpacing))pt")
+                            .foregroundColor(.secondary)
+                    }
+                } footer: {
+                    Text("El espaciado se ajustará automáticamente según el tamaño de fuente")
+                }
+
                 // Auto-Hide Toolbar Section
                 Section {
                     Toggle("Ocultar automáticamente", isOn: $localPreferences.autoHideToolbar)

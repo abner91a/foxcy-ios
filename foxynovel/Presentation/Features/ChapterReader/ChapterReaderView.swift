@@ -281,15 +281,17 @@ struct ChapterReaderView: View {
                         .frame(maxWidth: .infinity, alignment: .leading)
                         .padding(.bottom, 24)
 
-                        // Content segments
-                        ForEach(Array(chapter.contentSegments.enumerated()), id: \.offset) { segmentIndex, segment in
-                            segmentView(segment)
-                                .onAppear {
-                                    viewModel.updateReadingProgress(
-                                        segmentIndex: segmentIndex,
-                                        totalSegments: chapter.contentSegments.count
-                                    )
-                                }
+                        // Content segments with proper spacing
+                        VStack(alignment: .leading, spacing: 0) {
+                            ForEach(Array(chapter.contentSegments.enumerated()), id: \.offset) { segmentIndex, segment in
+                                segmentView(segment)
+                                    .onAppear {
+                                        viewModel.updateReadingProgress(
+                                            segmentIndex: segmentIndex,
+                                            totalSegments: chapter.contentSegments.count
+                                        )
+                                    }
+                            }
                         }
 
                         // Chapter divider (except for last chapter)
@@ -314,9 +316,9 @@ struct ChapterReaderView: View {
                     chapterLoadingView
                 }
             }
-            .padding(.horizontal, 20)
-            .padding(.top, isToolbarVisible ? 56 : 20)
-            .padding(.bottom, isToolbarVisible ? 72 : 20)
+            .padding(.horizontal, 24)
+            .padding(.top, isToolbarVisible ? 56 : 24)
+            .padding(.bottom, isToolbarVisible ? 72 : 24)
         }
         .contentShape(Rectangle())
         .onTapGesture {
@@ -399,15 +401,17 @@ struct ChapterReaderView: View {
                 .font(headingFont(level: segment.level ?? 1))
                 .fontWeight(.semibold)
                 .foregroundColor(preferences.theme.textColor)
-                .padding(.top, 16)
-                .padding(.bottom, 8)
+                .padding(.top, 20)
+                .padding(.bottom, 12)
 
         case .paragraph:
             Text(segment.content)
                 .font(preferences.fontFamily.font(size: preferences.validatedFontSize))
                 .foregroundColor(preferences.theme.textColor)
                 .lineSpacing(preferences.validatedLineSpacing)
-                .padding(.bottom, 12)
+                .fixedSize(horizontal: false, vertical: true)
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(.bottom, preferences.computedParagraphSpacing)
         }
     }
 

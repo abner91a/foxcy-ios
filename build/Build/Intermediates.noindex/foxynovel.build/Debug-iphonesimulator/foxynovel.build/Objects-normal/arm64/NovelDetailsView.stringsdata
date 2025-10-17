@@ -1,0 +1,96 @@
+{
+  "source": "/Users/abner/Desktop/kotlin/foxynovel/foxynovel/Presentation/Features/NovelDetails/NovelDetailsView.swift",
+  "tables": {
+    "Localizable": [
+      {
+        "comment": "",
+        "key": "Por %@",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 127
+        }
+      },
+      {
+        "comment": "",
+        "key": "Completada",
+        "location": {
+          "startingColumn": 51,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "En curso",
+        "location": {
+          "startingColumn": 66,
+          "startingLine": 133
+        }
+      },
+      {
+        "comment": "",
+        "key": "Cargando detalles...",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 266
+        }
+      },
+      {
+        "comment": "",
+        "key": "Error",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 280
+        }
+      },
+      {
+        "comment": "",
+        "key": "Sinopsis",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 301
+        }
+      },
+      {
+        "comment": "",
+        "key": "Género y Etiquetas",
+        "location": {
+          "startingColumn": 18,
+          "startingLine": 315
+        }
+      },
+      {
+        "comment": "",
+        "key": "No hay capítulos disponibles",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 360
+        }
+      },
+      {
+        "comment": "",
+        "key": "Capítulos",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 349
+        }
+      },
+      {
+        "comment": "",
+        "key": "%lld capítulos",
+        "location": {
+          "startingColumn": 22,
+          "startingLine": 354
+        }
+      },
+      {
+        "comment": "",
+        "key": "Ver todos los capítulos",
+        "location": {
+          "startingColumn": 34,
+          "startingLine": 382
+        }
+      }
+    ]
+  },
+  "version": 1
+}
