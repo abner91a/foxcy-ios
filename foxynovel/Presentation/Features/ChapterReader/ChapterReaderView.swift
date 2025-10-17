@@ -14,6 +14,7 @@ struct ChapterReaderView: View {
     @State private var preferences: ReadingPreferences
     @State private var isToolbarVisible = true
     @State private var showSettings = false
+    @State private var showChaptersList = false
     @State private var autoHideTask: Task<Void, Never>?
 
     // Scroll navigation properties (continuous scroll)
@@ -106,6 +107,11 @@ struct ChapterReaderView: View {
             .presentationDetents([.medium, .large])
             .presentationDragIndicator(.visible)
         }
+        .sheet(isPresented: $showChaptersList) {
+            ChaptersListSheet(viewModel: viewModel)
+                .presentationDetents([.medium, .large])
+                .presentationDragIndicator(.visible)
+        }
         .onChange(of: preferences) { _, newPreferences in
             savePreferences()
             if newPreferences.autoHideToolbar {
@@ -117,7 +123,15 @@ struct ChapterReaderView: View {
 
     // MARK: - Top Toolbar
     private var topToolbar: some View {
-        HStack {
+        HStack(spacing: 8) {
+            // Chapters list button (left)
+            Button(action: { showChaptersList = true }) {
+                Image(systemName: "list.bullet")
+                    .font(.title3)
+                    .foregroundColor(preferences.theme.textColor)
+                    .frame(width: 44, height: 44)
+            }
+
             Spacer()
 
             if let currentChapter = viewModel.currentChapter {
@@ -129,6 +143,7 @@ struct ChapterReaderView: View {
 
             Spacer()
 
+            // Settings button (right)
             Button(action: { showSettings = true }) {
                 Image(systemName: "textformat.size")
                     .font(.title3)
