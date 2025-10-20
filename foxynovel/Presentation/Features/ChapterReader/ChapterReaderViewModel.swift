@@ -159,8 +159,9 @@ final class ChapterReaderViewModel: ObservableObject {
             }
         }
 
-        // Prefetching: trigger at 75% progress
-        if newProgress >= 0.75 && lastPrefetchProgress < 0.75 {
+        // Prefetching: trigger at 88% progress (optimizado de 75% para evitar prefetch innecesario)
+        // 88% asegura que el usuario está realmente cerca del final
+        if newProgress >= 0.88 && lastPrefetchProgress < 0.88 {
             lastPrefetchProgress = newProgress
             Task {
                 await triggerPrefetch()
@@ -275,6 +276,18 @@ final class ChapterReaderViewModel: ObservableObject {
               let previousId = content.previousChapterId else {
             return
         }
+
+        // Guardar progreso actual antes de navegar
+        await saveProgress(progress: Double(readingProgress))
+
+        // Si el capítulo ya está cargado, solo actualizar currentChapterId
+        if chapters.contains(where: { $0.id == previousId }) {
+            currentChapterId = previousId
+            readingProgress = 0.0
+            lastPrefetchProgress = 0.0
+            return
+        }
+
         await loadInitialChapter(id: previousId)
     }
 
@@ -283,16 +296,30 @@ final class ChapterReaderViewModel: ObservableObject {
               let nextId = content.nextChapterId else {
             return
         }
+
+        // Guardar progreso actual antes de navegar
+        await saveProgress(progress: Double(readingProgress))
+
+        // Si el capítulo ya está cargado, solo actualizar currentChapterId
+        if chapters.contains(where: { $0.id == nextId }) {
+            currentChapterId = nextId
+            readingProgress = 0.0
+            lastPrefetchProgress = 0.0
+            return
+        }
+
         await loadInitialChapter(id: nextId)
     }
 
     // MARK: - Memory Management
 
     private func cleanupOldChapters() {
-        guard chapters.count > maxChaptersInMemory else { return }
+        // Optimización: limpiar más agresivamente cuando hay más de 3 capítulos
+        // Esto evita acumulación de memoria en sesiones largas de lectura
+        guard chapters.count > 3 else { return }
 
-        // Keep only last maxChaptersInMemory chapters
-        let chaptersToRemove = chapters.count - maxChaptersInMemory
+        // Mantener solo los últimos 3 capítulos en memoria
+        let chaptersToRemove = chapters.count - 3
         chapters.removeFirst(chaptersToRemove)
 
         print("🧹 Cleaned up \(chaptersToRemove) old chapters. Current count: \(chapters.count)")

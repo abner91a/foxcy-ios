@@ -286,10 +286,13 @@ struct ChapterReaderView: View {
                             ForEach(Array(chapter.contentSegments.enumerated()), id: \.offset) { segmentIndex, segment in
                                 segmentView(segment)
                                     .onAppear {
-                                        viewModel.updateReadingProgress(
-                                            segmentIndex: segmentIndex,
-                                            totalSegments: chapter.contentSegments.count
-                                        )
+                                        // Optimización: solo actualizar progreso cada 5 segments para reducir overhead
+                                        if segmentIndex % 5 == 0 || segmentIndex == chapter.contentSegments.count - 1 {
+                                            viewModel.updateReadingProgress(
+                                                segmentIndex: segmentIndex,
+                                                totalSegments: chapter.contentSegments.count
+                                            )
+                                        }
                                     }
                             }
                         }
@@ -332,13 +335,14 @@ struct ChapterReaderView: View {
             }
         }
         .gesture(
-            DragGesture(minimumDistance: 50, coordinateSpace: .local)
+            DragGesture(minimumDistance: 80, coordinateSpace: .local) // Aumentado de 50 a 80 para mejor detección
                 .onEnded { value in
                     let horizontalAmount = value.translation.width
                     let verticalAmount = value.translation.height
 
-                    // Only trigger if horizontal swipe is dominant
-                    if abs(horizontalAmount) > abs(verticalAmount) {
+                    // Optimización: swipe horizontal debe ser 2x más dominante que vertical
+                    // Esto evita conflictos con scroll vertical y falsos positivos
+                    if abs(horizontalAmount) > abs(verticalAmount) * 2 {
                         if horizontalAmount > 0 && canNavigatePrevious {
                             Task {
                                 await viewModel.navigateToPreviousChapter()
@@ -392,12 +396,42 @@ struct ChapterReaderView: View {
         .padding(.vertical, 40)
     }
 
+    // MARK: - Styled Text Helper
+    private func styledText(for segment: ContentSegment) -> AttributedString {
+        var attributedString = AttributedString(segment.content)
+
+        // Apply styles from spans
+        for span in segment.spans {
+            guard span.start < segment.content.count && span.end <= segment.content.count else { continue }
+
+            let startIndex = attributedString.index(attributedString.startIndex, offsetByCharacters: span.start)
+            let endIndex = attributedString.index(attributedString.startIndex, offsetByCharacters: span.end)
+            let range = startIndex..<endIndex
+
+            switch span.style {
+            case .bold:
+                attributedString[range].inlinePresentationIntent = .stronglyEmphasized
+            case .italic:
+                attributedString[range].inlinePresentationIntent = .emphasized
+            case .underline:
+                attributedString[range].underlineStyle = .single
+            case .strikethrough:
+                attributedString[range].strikethroughStyle = .single
+            case .highlight:
+                attributedString[range].backgroundColor = preferences.theme == .dark ?
+                    Color.yellow.opacity(0.3) : Color.yellow.opacity(0.4)
+            }
+        }
+
+        return attributedString
+    }
+
     // MARK: - Segment View
     @ViewBuilder
     private func segmentView(_ segment: ContentSegment) -> some View {
         switch segment.type {
         case .heading:
-            Text(segment.content)
+            Text(styledText(for: segment))
                 .font(headingFont(level: segment.level ?? 1))
                 .fontWeight(.semibold)
                 .foregroundColor(preferences.theme.textColor)
@@ -405,12 +439,13 @@ struct ChapterReaderView: View {
                 .padding(.bottom, 12)
 
         case .paragraph:
-            Text(segment.content)
+            Text(styledText(for: segment))
                 .font(preferences.fontFamily.font(size: preferences.validatedFontSize))
                 .foregroundColor(preferences.theme.textColor)
                 .lineSpacing(preferences.validatedLineSpacing)
                 .fixedSize(horizontal: false, vertical: true)
                 .frame(maxWidth: .infinity, alignment: .leading)
+                .multilineTextAlignment(preferences.textAlignment == .justified ? .leading : preferences.textAlignment.swiftUIAlignment)
                 .padding(.bottom, preferences.computedParagraphSpacing)
         }
     }
