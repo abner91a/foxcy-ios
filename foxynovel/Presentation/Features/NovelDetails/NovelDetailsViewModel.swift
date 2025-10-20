@@ -12,8 +12,10 @@ import Combine
 final class NovelDetailsViewModel: ObservableObject {
     @Published var novelDetails: NovelDetails?
     @Published var chapters: [ChapterInfo] = []
+    @Published var similarNovels: [SimilarNovel] = []
     @Published var isLoading: Bool = false
     @Published var isLoadingMoreChapters: Bool = false
+    @Published var isLoadingSimilar: Bool = false
     @Published var errorMessage: String?
     @Published var isFavorite: Bool = false
     @Published var isLiked: Bool = false
@@ -62,6 +64,9 @@ final class NovelDetailsViewModel: ObservableObject {
 
             // Cargar primeros 50 capítulos usando endpoint paginado
             await loadInitialChapters()
+
+            // Cargar novelas similares en paralelo
+            await loadSimilarNovels()
 
         } catch {
             errorMessage = "Error al cargar los detalles: \(error.localizedDescription)"
@@ -188,6 +193,23 @@ final class NovelDetailsViewModel: ObservableObject {
         guard let novel = novelDetails else { return }
         // TODO: Implement share functionality
         print("Sharing novel: \(novel.title)")
+    }
+
+    func loadSimilarNovels() async {
+        guard let novelId = currentNovelId else { return }
+
+        isLoadingSimilar = true
+
+        do {
+            let response = try await novelRepository.getSimilarNovels(novelId: novelId)
+            similarNovels = response.novels
+            print("✅ Loaded \(response.novels.count) similar novels")
+        } catch {
+            print("❌ Error loading similar novels: \(error)")
+            // No mostramos error al usuario - las novelas similares son opcionales
+        }
+
+        isLoadingSimilar = false
     }
 
     // MARK: - Private Helpers

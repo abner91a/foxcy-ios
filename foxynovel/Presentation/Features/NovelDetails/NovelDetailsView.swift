@@ -50,6 +50,11 @@ struct NovelDetailsView: View {
 
                         // Chapters preview
                         chaptersPreviewSection(novel)
+
+                        // Similar novels
+                        if !viewModel.similarNovels.isEmpty {
+                            similarNovelsSection(novel)
+                        }
                     }
                     .padding(.horizontal, Spacing.screenPadding)
                 }
@@ -393,6 +398,41 @@ struct NovelDetailsView: View {
                     .padding(.top, Spacing.xs)
                 }
             }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(.vertical, Spacing.md)
+    }
+
+    // MARK: - Similar Novels Section
+    private func similarNovelsSection(_ novel: NovelDetails) -> some View {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            HStack {
+                Text("Novelas Similares")
+                    .typography(Typography.titleMedium)
+
+                Spacer()
+
+                if viewModel.isLoadingSimilar {
+                    ProgressView()
+                        .scaleEffect(0.8)
+                }
+            }
+
+            ScrollView(.horizontal, showsIndicators: false) {
+                LazyHStack(spacing: Spacing.md) {
+                    ForEach(viewModel.similarNovels) { similar in
+                        NavigationLink(destination: NovelDetailsView(novelId: similar.id)) {
+                            SimilarNovelCard(novel: similar)
+                                .frame(width: 160)
+                        }
+                        .buttonStyle(PlainButtonStyle())
+                    }
+                }
+                .scrollTargetLayout()
+            }
+            .scrollTargetBehavior(.viewAligned)
+            .scrollClipDisabled()
+            .frame(height: 310)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, Spacing.md)

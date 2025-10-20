@@ -15,6 +15,7 @@ enum NovelEndpoints: Endpoint {
     case search(query: String, page: Int)
     case toggleFavorite(novelId: String)
     case toggleLike(novelId: String)
+    case similarNovels(novelId: String)
 
     var path: String {
         switch self {
@@ -32,12 +33,14 @@ enum NovelEndpoints: Endpoint {
             return "/v1/userinterationNovelapp/favorite"
         case .toggleLike:
             return "/v1/userinterationNovelapp/like"
+        case .similarNovels(let novelId):
+            return "/v1/detallesNovelsapp/\(novelId)/similar"
         }
     }
 
     var method: HTTPMethod {
         switch self {
-        case .teVaGustar, .novelDetails, .chaptersPaginated, .chapterContent, .search:
+        case .teVaGustar, .novelDetails, .chaptersPaginated, .chapterContent, .search, .similarNovels:
             return .get
         case .toggleFavorite, .toggleLike:
             return .post
@@ -67,7 +70,7 @@ enum NovelEndpoints: Endpoint {
             return nil
         case .search(let query, let page):
             return ["q": query, "page": "\(page)"]
-        case .toggleFavorite, .toggleLike:
+        case .toggleFavorite, .toggleLike, .similarNovels:
             return nil
         }
     }

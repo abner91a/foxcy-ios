@@ -15,6 +15,7 @@ protocol NovelRepositoryProtocol {
     func searchNovels(query: String, page: Int) async throws -> [Novel]
     func toggleFavorite(novelId: String) async throws
     func toggleLike(novelId: String) async throws
+    func getSimilarNovels(novelId: String) async throws -> SimilarNovelsResponse
 }
 
 struct NovelListResponse: Codable {

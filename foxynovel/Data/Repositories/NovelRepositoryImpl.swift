@@ -58,4 +58,10 @@ final class NovelRepositoryImpl: NovelRepositoryProtocol {
         let response: ApiResponse<ChapterContentDTO> = try await networkClient.request(endpoint)
         return response.data.toDomain()
     }
+
+    func getSimilarNovels(novelId: String) async throws -> SimilarNovelsResponse {
+        let endpoint = NovelEndpoints.similarNovels(novelId: novelId)
+        let response: ApiResponse<SimilarNovelsResponse> = try await networkClient.request(endpoint)
+        return response.data
+    }
 }
