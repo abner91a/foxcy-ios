@@ -39,8 +39,8 @@ struct NovelDetailsView: View {
                         // Stats row
                         statsSection(novel)
 
-                        // Action buttons
-                        actionButtons
+                        // Secondary actions (favorito, like, compartir)
+                        secondaryActionsRow
 
                         // Description
                         descriptionSection(novel)
@@ -59,6 +59,9 @@ struct NovelDetailsView: View {
                     .padding(.horizontal, Spacing.screenPadding)
                 }
             }
+        }
+        .safeAreaInset(edge: .bottom) {
+            continueReadingStickyButton
         }
         .background(Color.background.ignoresSafeArea())
         .navigationBarTitleDisplayMode(.inline)
@@ -194,54 +197,62 @@ struct NovelDetailsView: View {
         .frame(maxWidth: .infinity)
     }
 
-    // MARK: - Action Buttons
-    private var actionButtons: some View {
-        VStack(spacing: Spacing.sm) {
-            // Primary action: Continue reading or Start
+    // MARK: - Continue Reading Sticky Button
+    private var continueReadingStickyButton: some View {
+        Group {
             if let progress = savedProgress {
                 PrimaryButton("Continuar leyendo - Cap. \(progress.currentChapterOrder)") {
                     selectedChapterId = progress.currentChapterId
                     showingChapterReader = true
                 }
-            } else {
-                PrimaryButton(viewModel.chapters.isEmpty ? "Empezar a leer" : "Empezar a leer") {
+                .padding(.horizontal, Spacing.screenPadding)
+                .padding(.vertical, Spacing.md)
+                .background(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 10, y: -5)
+            } else if viewModel.novelDetails != nil, !viewModel.chapters.isEmpty {
+                PrimaryButton("Empezar a leer") {
                     if let chapter = viewModel.startReading() {
                         selectedChapterId = chapter.id
                         showingChapterReader = true
                     }
                 }
-                .disabled(viewModel.chapters.isEmpty)
+                .padding(.horizontal, Spacing.screenPadding)
+                .padding(.vertical, Spacing.md)
+                .background(.ultraThinMaterial)
+                .shadow(color: .black.opacity(0.1), radius: 10, y: -5)
+            }
+        }
+    }
+
+    // MARK: - Secondary Actions Row
+    private var secondaryActionsRow: some View {
+        HStack(spacing: Spacing.sm) {
+            secondaryButton(
+                icon: viewModel.isFavorite ? "heart.fill" : "heart",
+                label: "Favorito",
+                color: viewModel.isFavorite ? .red : .textSecondary
+            ) {
+                Task {
+                    await viewModel.toggleFavorite()
+                }
             }
 
-            // Secondary actions
-            HStack(spacing: Spacing.sm) {
-                secondaryButton(
-                    icon: viewModel.isFavorite ? "heart.fill" : "heart",
-                    label: "Favorito",
-                    color: viewModel.isFavorite ? .red : .textSecondary
-                ) {
-                    Task {
-                        await viewModel.toggleFavorite()
-                    }
+            secondaryButton(
+                icon: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
+                label: "Me gusta",
+                color: viewModel.isLiked ? .accent : .textSecondary
+            ) {
+                Task {
+                    await viewModel.toggleLike()
                 }
+            }
 
-                secondaryButton(
-                    icon: viewModel.isLiked ? "hand.thumbsup.fill" : "hand.thumbsup",
-                    label: "Me gusta",
-                    color: viewModel.isLiked ? .accent : .textSecondary
-                ) {
-                    Task {
-                        await viewModel.toggleLike()
-                    }
-                }
-
-                secondaryButton(
-                    icon: "square.and.arrow.up",
-                    label: "Compartir",
-                    color: .textSecondary
-                ) {
-                    viewModel.shareNovel()
-                }
+            secondaryButton(
+                icon: "square.and.arrow.up",
+                label: "Compartir",
+                color: .textSecondary
+            ) {
+                viewModel.shareNovel()
             }
         }
     }
