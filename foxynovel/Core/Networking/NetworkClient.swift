@@ -12,11 +12,38 @@ protocol NetworkClientProtocol {
     func request(_ endpoint: Endpoint) async throws
 }
 
+/// Actor para coordinar refresh de tokens de forma thread-safe
+private actor TokenRefreshCoordinator {
+    private var isRefreshing = false
+    private var currentRefreshTask: Task<Bool, Error>?
+
+    func performRefresh(
+        refresh: @escaping () async throws -> Bool
+    ) async -> Bool {
+        // Si ya hay un refresh en progreso, esperar a que termine
+        if let existingTask = currentRefreshTask {
+            return (try? await existingTask.value) ?? false
+        }
+
+        // Crear nueva tarea de refresh
+        let task = Task {
+            isRefreshing = true
+            defer {
+                isRefreshing = false
+                currentRefreshTask = nil
+            }
+            return try await refresh()
+        }
+
+        currentRefreshTask = task
+        return (try? await task.value) ?? false
+    }
+}
+
 final class NetworkClient: NetworkClientProtocol {
     private let session: URLSession
     private let tokenProvider: TokenProvider
-    private var isRefreshing: Bool = false
-    private var refreshLock = NSLock()
+    private let refreshCoordinator = TokenRefreshCoordinator()
 
     init(
         session: URLSession = .shared,
@@ -93,66 +120,59 @@ final class NetworkClient: NetworkClientProtocol {
     /// Attempts to refresh the access token using the refresh token
     /// - Returns: true if refresh was successful, false otherwise
     private func attemptTokenRefresh() async throws -> Bool {
-        // Prevent multiple simultaneous refresh attempts
-        refreshLock.lock()
-        defer { refreshLock.unlock() }
+        return await refreshCoordinator.performRefresh { [weak self] in
+            guard let self = self else { return false }
 
-        if isRefreshing {
-            #if DEBUG
-            print("⏳ [NetworkClient] Token refresh already in progress")
-            #endif
-            return false
-        }
-
-        isRefreshing = true
-        defer { isRefreshing = false }
-
-        // Get refresh token
-        guard let tokenManager = tokenProvider as? TokenManager,
-              let refreshToken = tokenManager.getRefreshToken() else {
-            #if DEBUG
-            print("❌ [NetworkClient] No refresh token available")
-            #endif
-            return false
-        }
-
-        do {
-            // Create refresh endpoint
-            let refreshEndpoint = AuthEndpoints.refreshToken(refreshToken: refreshToken)
-
-            // Make refresh request without going through interceptor
-            var urlRequest = try refreshEndpoint.asURLRequest()
-            let (data, response) = try await session.data(for: urlRequest)
-
-            guard let httpResponse = response as? HTTPURLResponse,
-                  httpResponse.statusCode == 200 else {
+            // Get refresh token
+            guard let tokenManager = self.tokenProvider as? TokenManager,
+                  let refreshToken = tokenManager.getRefreshToken() else {
                 #if DEBUG
-                print("❌ [NetworkClient] Refresh request failed")
+                print("❌ [NetworkClient] No refresh token available")
                 #endif
                 return false
             }
 
-            // Decode refresh response
-            let decoder = JSONDecoder()
-            let apiResponse = try decoder.decode(ApiResponse<AuthResponseDTO>.self, from: data)
-            let authResponse = apiResponse.data
+            do {
+                // Create refresh endpoint
+                let refreshEndpoint = AuthEndpoints.refreshToken(refreshToken: refreshToken)
 
-            // Save new tokens
-            tokenManager.saveAccessToken(authResponse.accessToken)
-            if let newRefreshToken = authResponse.refreshToken {
-                tokenManager.saveRefreshToken(newRefreshToken)
+                // Make refresh request without going through interceptor
+                let urlRequest = try refreshEndpoint.asURLRequest()
+                let (data, response) = try await self.session.data(for: urlRequest)
+
+                guard let httpResponse = response as? HTTPURLResponse,
+                      httpResponse.statusCode == 200 else {
+                    #if DEBUG
+                    print("❌ [NetworkClient] Refresh request failed")
+                    #endif
+                    return false
+                }
+
+                // Decode refresh response
+                let decoder = JSONDecoder()
+                let apiResponse = try decoder.decode(ApiResponse<AuthResponseDTO>.self, from: data)
+                let authResponse = apiResponse.data
+
+                // Save new tokens
+                tokenManager.saveAccessToken(authResponse.accessToken)
+                if let newRefreshToken = authResponse.refreshToken {
+                    tokenManager.saveRefreshToken(newRefreshToken)
+                }
+
+                // Update cached user data as well
+                UserStorage.saveUser(authResponse.user.toDomain())
+
+                #if DEBUG
+                print("✅ [NetworkClient] Tokens refreshed successfully")
+                #endif
+
+                return true
+            } catch {
+                #if DEBUG
+                print("❌ [NetworkClient] Token refresh error: \(error)")
+                #endif
+                return false
             }
-
-            #if DEBUG
-            print("✅ [NetworkClient] Tokens refreshed successfully")
-            #endif
-
-            return true
-        } catch {
-            #if DEBUG
-            print("❌ [NetworkClient] Token refresh error: \(error)")
-            #endif
-            return false
         }
     }
 

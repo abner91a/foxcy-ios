@@ -31,52 +31,54 @@ class ProfileViewModel: ObservableObject {
         #if DEBUG
         print("🔍 [ProfileViewModel] Checking auth status...")
         #endif
+
         isAuthenticated = authRepository.isAuthenticated()
+
         #if DEBUG
         print("🔍 [ProfileViewModel] Is authenticated: \(isAuthenticated)")
         #endif
 
         if isAuthenticated {
-            // Load user from cache immediately (fast UX)
+            // Load user from cache - ALWAYS available after login
             user = UserStorage.loadUser()
 
             #if DEBUG
-            if user != nil {
-                print("✅ [ProfileViewModel] User loaded from cache: \(user?.email ?? "unknown")")
+            if let user = user {
+                print("✅ [ProfileViewModel] User loaded from cache: \(user.email)")
+            } else {
+                print("⚠️ [ProfileViewModel] No cached user found - user needs to login")
             }
             #endif
 
-            // Optionally refresh in background if cache is stale
-            Task {
-                await refreshUserIfNeeded()
-            }
+            // NO automatic refresh - user controls updates via pull-to-refresh
         }
     }
 
-    /// Refresh user data from server if cache is stale
-    private func refreshUserIfNeeded() async {
-        // Only refresh if cache is older than 1 hour
-        guard UserStorage.shouldRefreshUserData() else {
-            #if DEBUG
-            print("ℹ️ [ProfileViewModel] Cache is fresh, skipping server request")
-            #endif
-            return
-        }
-
-        #if DEBUG
-        print("🔄 [ProfileViewModel] Cache is stale, refreshing from server...")
-        #endif
-        await loadUserProfile()
-    }
-
-    /// Force refresh user data from server (for pull-to-refresh)
+    /// Force refresh user data (for pull-to-refresh)
+    /// Currently reloads from cache. In the future, you can call a server endpoint here
+    /// if you need to fetch updated data (e.g., after profile edit from another device)
     func refreshUserData() async {
         #if DEBUG
         print("🔄 [ProfileViewModel] Manual refresh requested")
         #endif
+
         isLoading = true
-        await loadUserProfile()
+
+        // Simply reload from cache (instant)
+        user = UserStorage.loadUser()
+
+        // TODO: In the future, if you need fresh data from server:
+        // do {
+        //     user = try await authRepository.fetchUserProfileFromServer()
+        // } catch {
+        //     // Keep current cached user on error
+        // }
+
         isLoading = false
+
+        #if DEBUG
+        print("✅ [ProfileViewModel] Refresh completed")
+        #endif
     }
 
     func signInWithGoogle() async {
@@ -123,20 +125,19 @@ class ProfileViewModel: ObservableObject {
 
     private func loadUserProfile() async {
         #if DEBUG
-        print("👤 [ProfileViewModel] Loading user profile...")
+        print("👤 [ProfileViewModel] Loading user profile from cache...")
         #endif
-        do {
-            user = try await authRepository.getCurrentUser()
-            #if DEBUG
-            print("✅ [ProfileViewModel] User profile loaded: \(user?.email ?? "unknown")")
-            #endif
-        } catch {
-            #if DEBUG
-            print("❌ [ProfileViewModel] Error loading user profile: \(error)")
-            #endif
-            // Si falla al cargar el perfil, el token puede haber expirado
-            isAuthenticated = false
+
+        // getCurrentUser() now only reads from cache (never fails)
+        user = try? await authRepository.getCurrentUser()
+
+        #if DEBUG
+        if let user = user {
+            print("✅ [ProfileViewModel] User profile loaded: \(user.email)")
+        } else {
+            print("⚠️ [ProfileViewModel] No cached user - needs login")
         }
+        #endif
     }
 
     private func registerFCMToken() async {

@@ -69,30 +69,19 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
     func getCurrentUser() async throws -> User? {
         guard isAuthenticated() else { return nil }
 
-        // Try to load from cache first
-        if let cachedUser = UserStorage.loadUser() {
-            // Check if cache is still fresh
-            if !UserStorage.shouldRefreshUserData() {
-                #if DEBUG
-                print("✅ [AuthRepository] Using cached user data")
-                #endif
-                return cachedUser
-            }
-        }
+        // Always load from cache - no server calls needed
+        // User data is cached after login/register/signIn
+        let cachedUser = UserStorage.loadUser()
 
-        // Cache is stale or doesn't exist - fetch from server
         #if DEBUG
-        print("🌐 [AuthRepository] Fetching user from server")
+        if let user = cachedUser {
+            print("✅ [AuthRepository] User loaded from cache: \(user.email)")
+        } else {
+            print("⚠️ [AuthRepository] No cached user found - user needs to login")
+        }
         #endif
 
-        let endpoint = AuthEndpoints.me
-        let userDTO: UserDTO = try await networkClient.request(endpoint)
-        let user = userDTO.toDomain()
-
-        // Update cache
-        UserStorage.saveUser(user)
-
-        return user
+        return cachedUser
     }
 
     func isAuthenticated() -> Bool {

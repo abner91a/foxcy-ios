@@ -10,7 +10,7 @@ import Foundation
 enum AuthEndpoints: Endpoint {
     case login(email: String, password: String)
     case register(email: String, password: String, username: String)
-    case me
+    // Removed .me case - we now use cache-only strategy for user data
     case googleSignInIOS(idToken: String)
     case refreshToken(refreshToken: String)
 
@@ -20,8 +20,6 @@ enum AuthEndpoints: Endpoint {
             return "/v1/auth/login"
         case .register:
             return "/v1/auth/register"
-        case .me:
-            return "/v1/auth/me"
         case .googleSignInIOS:
             return "/v1/auth/google/ios"
         case .refreshToken:
@@ -33,8 +31,6 @@ enum AuthEndpoints: Endpoint {
         switch self {
         case .login, .register, .googleSignInIOS, .refreshToken:
             return .post
-        case .me:
-            return .get
         }
     }
 
@@ -44,8 +40,6 @@ enum AuthEndpoints: Endpoint {
             return LoginRequestDTO(email: email, password: password)
         case .register(let email, let password, let username):
             return RegisterRequestDTO(email: email, password: password, username: username)
-        case .me:
-            return nil
         case .googleSignInIOS(let idToken):
             return GoogleSignInRequestDTO(idToken: idToken)
         case .refreshToken(let token):
