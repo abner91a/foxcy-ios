@@ -17,23 +17,33 @@ class ReadingProgress {
     var authorName: String
 
     var currentChapterId: String
-    var currentChapterOrder: Int
+    var currentChapter: Int // Renamed from currentChapterOrder (match Android)
     var currentChapterTitle: String
 
-    var progress: Double // 0.0 - 1.0 (progreso dentro del capítulo actual)
+    // 🎯 UX 2025: Tracking preciso y detallado
+    var currentPosition: Int // Posición de scroll dentro del capítulo
+    var scrollPercentage: Double? // null = sin progreso, 0.0-1.0 = progreso real
+    var segmentIndex: Int // Índice del segmento en modo VERTICAL
+
     var lastReadDate: Date
     var updatedAt: Date
 
     var totalChaptersRead: Int
     var totalChapters: Int
 
-    // 🔄 Sincronización
-    var needsSync: Bool // true si hay cambios no sincronizados con el servidor
-    var lastSyncDate: Date?
+    // 🚀 Dual Counter System for Offline-First Sync
+    // Backend source of truth (total acumulado en servidor)
+    var totalReadingTime: Int64
+    // Delta local pendiente de sincronización
+    var unsyncedDelta: Int64
 
     var progressPercentage: Double {
         guard totalChapters > 0 else { return 0.0 }
-        return Double(currentChapterOrder) / Double(totalChapters)
+        return Double(currentChapter) / Double(totalChapters)
+    }
+
+    var lastReadTime: Int64 {
+        Int64(lastReadDate.timeIntervalSince1970 * 1000)
     }
 
     init(
@@ -42,7 +52,7 @@ class ReadingProgress {
         novelCoverImage: String,
         authorName: String,
         currentChapterId: String,
-        currentChapterOrder: Int,
+        currentChapter: Int,
         currentChapterTitle: String,
         totalChapters: Int
     ) {
@@ -52,14 +62,16 @@ class ReadingProgress {
         self.novelCoverImage = novelCoverImage
         self.authorName = authorName
         self.currentChapterId = currentChapterId
-        self.currentChapterOrder = currentChapterOrder
+        self.currentChapter = currentChapter
         self.currentChapterTitle = currentChapterTitle
-        self.progress = 0.0
+        self.currentPosition = 0
+        self.scrollPercentage = nil
+        self.segmentIndex = 0
         self.lastReadDate = Date()
         self.updatedAt = Date()
         self.totalChaptersRead = 1
         self.totalChapters = totalChapters
-        self.needsSync = true
-        self.lastSyncDate = nil
+        self.totalReadingTime = 0
+        self.unsyncedDelta = 0
     }
 }

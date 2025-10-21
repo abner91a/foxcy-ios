@@ -260,7 +260,7 @@ final class ChapterReaderViewModel: ObservableObject {
                     novelCoverImage: currentNovelCoverImage,
                     authorName: currentAuthorName,
                     currentChapterId: currentChapterId,
-                    currentChapterOrder: content.chapterOrder,
+                    currentChapter: content.chapterOrder,
                     currentChapterTitle: content.title,
                     totalChapters: totalChapters
                 )

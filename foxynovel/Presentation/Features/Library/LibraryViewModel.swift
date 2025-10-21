@@ -12,81 +12,167 @@ import Combine
 class LibraryViewModel: ObservableObject {
     @Published var readingHistory: [ReadingProgress] = []
     @Published var isLoading = false
-    @Published var isSyncing = false
-    @Published var syncStatus: String = ""
     @Published var errorMessage: String?
 
-    private let progressRepository: ReadingProgressRepository
-    private let tokenManager: TokenProvider
+    private let progressRepository: any ReadingProgressRepository
+    private let authRepository: AuthRepositoryProtocol
+    private var cancellables = Set<AnyCancellable>()
+
+    // Track para auto-sync
+    private var wasAuthenticated = false
 
     var isAuthenticated: Bool {
-        tokenManager.isTokenValid()
+        authRepository.isAuthenticated()
     }
 
-    var needsSyncCount: Int {
-        readingHistory.filter { $0.needsSync }.count
+    var syncState: SyncState {
+        progressRepository.syncState
     }
 
-    init(progressRepository: ReadingProgressRepository, tokenManager: TokenProvider) {
+    var lastSyncTime: Int64? {
+        progressRepository.lastSyncTime
+    }
+
+    var isSyncing: Bool {
+        if case .syncing = syncState {
+            return true
+        }
+        return false
+    }
+
+    var syncStatusMessage: String {
+        switch syncState {
+        case .idle:
+            return ""
+        case .syncing:
+            return "Sincronizando..."
+        case .success(let synced, let failed):
+            if failed > 0 {
+                return "⚠️ \(synced) sincronizadas, \(failed) errores"
+            } else if synced > 0 {
+                return "✓ \(synced) novelas sincronizadas"
+            } else {
+                return "✓ Todo sincronizado"
+            }
+        case .error(let message):
+            return "❌ \(message)"
+        }
+    }
+
+    init(progressRepository: any ReadingProgressRepository, authRepository: AuthRepositoryProtocol) {
         self.progressRepository = progressRepository
-        self.tokenManager = tokenManager
+        self.authRepository = authRepository
+
+        // 🚀 Auto-sync cuando el usuario hace login (match con Android)
+        // Detecta cambios en el estado de autenticación (false → true)
+        setupAuthenticationObserver()
+    }
+
+    /// Configurar observación de autenticación para auto-sync
+    private func setupAuthenticationObserver() {
+        // Verificar periódicamente el estado de autenticación
+        Timer.publish(every: 1.0, on: .main, in: .common)
+            .autoconnect()
+            .sink { [weak self] _ in
+                guard let self = self else { return }
+
+                let isCurrentlyAuth = self.isAuthenticated
+
+                // Detectar transición de no autenticado → autenticado
+                if isCurrentlyAuth && !self.wasAuthenticated {
+                    #if DEBUG
+                    print("🔑 [LibraryViewModel] User logged in, triggering auto-sync...")
+                    #endif
+
+                    // Pequeño delay para asegurar que el token esté listo
+                    Task {
+                        try? await Task.sleep(nanoseconds: 500_000_000) // 0.5 segundos
+                        await self.syncHistory()
+                    }
+                }
+
+                self.wasAuthenticated = isCurrentlyAuth
+            }
+            .store(in: &cancellables)
     }
 
     func loadLibrary() async {
         isLoading = true
         errorMessage = nil
 
-        // Cargar historial local
+        // Cargar historial local (siempre disponible)
         readingHistory = await progressRepository.getAllReadingHistory()
-
-        // Si está autenticado y hay items pendientes, sync automático
-        if isAuthenticated && needsSyncCount > 0 {
-            await syncWithBackend()
-        }
 
         isLoading = false
     }
 
-    func syncWithBackend() async {
+    /// 🔄 Sincronizar historial de lectura con backend
+    /// Operación bidireccional: upload local + download remoto + merge
+    func syncHistory() async {
         guard isAuthenticated else {
             errorMessage = "Inicia sesión para sincronizar tu progreso"
             return
         }
 
-        isSyncing = true
-        syncStatus = "Sincronizando..."
-
         do {
-            let result = try await progressRepository.syncWithBackend()
+            let result = try await progressRepository.fullSync()
 
-            if result.itemsSynced > 0 {
-                syncStatus = "✓ \(result.itemsSynced) novelas sincronizadas"
-            }
-
-            if result.itemsFailed > 0 {
-                syncStatus = "⚠️ \(result.itemsFailed) errores"
-            }
-
-            // Recargar después de sync
+            // Recargar historial después de sync exitoso
             await loadLibrary()
 
-            // Limpiar mensaje después de 3 segundos
-            try? await Task.sleep(nanoseconds: 3_000_000_000)
-            syncStatus = ""
+            #if DEBUG
+            print("✅ [LibraryViewModel] Sync completed: \(result)")
+            #endif
 
         } catch {
             errorMessage = "Error al sincronizar: \(error.localizedDescription)"
-        }
 
-        isSyncing = false
+            #if DEBUG
+            print("❌ [LibraryViewModel] Sync failed: \(error)")
+            #endif
+        }
     }
 
-    func deleteNovel(_ novelId: String) async {
+    func deleteNovel(_ novelId: String, syncWithBackend: Bool = true) async {
         do {
-            try await progressRepository.deleteProgress(novelId: novelId)
+            try await progressRepository.deleteProgress(novelId: novelId, syncWithBackend: syncWithBackend)
             await loadLibrary()
+
+            #if DEBUG
+            print("✅ [LibraryViewModel] Deleted novel: \(novelId)")
+            #endif
         } catch {
             errorMessage = "Error al eliminar: \(error.localizedDescription)"
+
+            #if DEBUG
+            print("❌ [LibraryViewModel] Delete failed: \(error)")
+            #endif
+        }
+    }
+
+    /// Formatear timestamp de última sincronización para mostrar en UI
+    func formattedLastSyncTime() -> String {
+        guard let timestamp = lastSyncTime else {
+            return "Nunca"
+        }
+
+        let date = Date(timeIntervalSince1970: Double(timestamp) / 1000.0)
+        let now = Date()
+        let interval = now.timeIntervalSince(date)
+
+        if interval < 60 {
+            return "Hace un momento"
+        } else if interval < 3600 {
+            let minutes = Int(interval / 60)
+            return "Hace \(minutes) min"
+        } else if interval < 86400 {
+            let hours = Int(interval / 3600)
+            return "Hace \(hours)h"
+        } else {
+            let formatter = DateFormatter()
+            formatter.dateStyle = .short
+            formatter.timeStyle = .short
+            return formatter.string(from: date)
         }
     }
 }

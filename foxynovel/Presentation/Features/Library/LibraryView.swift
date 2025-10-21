@@ -16,7 +16,7 @@ struct LibraryView: View {
         let container = DIContainer.shared
         _viewModel = StateObject(wrappedValue: LibraryViewModel(
             progressRepository: container.readingProgressRepository,
-            tokenManager: container.tokenManager
+            authRepository: container.authRepository
         ))
     }
 
@@ -57,7 +57,7 @@ struct LibraryView: View {
         ScrollView {
             VStack(spacing: 0) {
                 // Sync status banner
-                if !viewModel.syncStatus.isEmpty {
+                if !viewModel.syncStatusMessage.isEmpty {
                     syncStatusBanner
                 }
 
@@ -72,7 +72,7 @@ struct LibraryView: View {
                             .contextMenu {
                                 Button(role: .destructive) {
                                     Task {
-                                        await viewModel.deleteNovel(novel.novelId)
+                                        await viewModel.deleteNovel(novel.novelId, syncWithBackend: true)
                                     }
                                 } label: {
                                     Label("Eliminar", systemImage: "trash")
@@ -84,6 +84,9 @@ struct LibraryView: View {
                 .padding(.top, 16)
             }
         }
+        .refreshable {
+            await viewModel.syncHistory()
+        }
     }
 
     // MARK: - Sync Button
@@ -91,26 +94,14 @@ struct LibraryView: View {
     private var syncButton: some View {
         Button(action: {
             Task {
-                await viewModel.syncWithBackend()
+                await viewModel.syncHistory()
             }
         }) {
-            HStack(spacing: 4) {
-                if viewModel.isSyncing {
-                    ProgressView()
-                        .scaleEffect(0.8)
-                } else {
-                    Image(systemName: viewModel.isAuthenticated ? "arrow.triangle.2.circlepath" : "person.crop.circle.badge.exclamationmark")
-                }
-
-                if viewModel.needsSyncCount > 0 && !viewModel.isSyncing {
-                    Text("\(viewModel.needsSyncCount)")
-                        .font(.caption2)
-                        .foregroundColor(.white)
-                        .padding(.horizontal, 6)
-                        .padding(.vertical, 2)
-                        .background(Color.red)
-                        .clipShape(Capsule())
-                }
+            if viewModel.isSyncing {
+                ProgressView()
+                    .scaleEffect(0.8)
+            } else {
+                Image(systemName: viewModel.isAuthenticated ? "arrow.triangle.2.circlepath" : "person.crop.circle.badge.exclamationmark")
             }
         }
         .disabled(viewModel.isSyncing || !viewModel.isAuthenticated)
@@ -119,13 +110,13 @@ struct LibraryView: View {
     // MARK: - Sync Status Banner
 
     private var syncStatusBanner: some View {
-        Text(viewModel.syncStatus)
+        Text(viewModel.syncStatusMessage)
             .font(.caption)
             .foregroundColor(.white)
             .padding(.horizontal, 16)
             .padding(.vertical, 8)
             .frame(maxWidth: .infinity)
-            .background(viewModel.syncStatus.contains("✓") ? Color.green : Color.orange)
+            .background(viewModel.syncStatusMessage.contains("✓") ? Color.green : Color.orange)
             .transition(.move(edge: .top).combined(with: .opacity))
     }
 

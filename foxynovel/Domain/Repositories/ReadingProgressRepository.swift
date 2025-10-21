@@ -6,8 +6,9 @@
 //
 
 import Foundation
+import Combine
 
-protocol ReadingProgressRepository {
+protocol ReadingProgressRepository: ObservableObject {
     // Local operations (siempre disponibles, no requieren conexión)
     func saveProgress(_ progress: ReadingProgress) async throws
     func updateProgress(
@@ -19,24 +20,40 @@ protocol ReadingProgressRepository {
     ) async throws
     func getProgress(novelId: String) async -> ReadingProgress?
     func getAllReadingHistory() async -> [ReadingProgress]
-    func deleteProgress(novelId: String) async throws
+    func deleteProgress(novelId: String, syncWithBackend: Bool) async throws
 
-    // Sync operations (requieren autenticación)
-    func syncWithBackend() async throws -> SyncResult
-    func downloadHistoryFromBackend() async throws
+    // Sync operations (requieren autenticación) - Match con Android
+    func fullSync() async throws -> SyncResult
+    func canSync() async -> Bool
+
+    // Estados observables para UI (acceso directo a properties)
+    var syncState: SyncState { get }
+    var lastSyncTime: Int64? { get }
 }
 
+// MARK: - Estados de Sincronización
+
+enum SyncState: Equatable {
+    case idle
+    case syncing
+    case success(synced: Int, failed: Int)
+    case error(message: String)
+}
+
+// MARK: - Resultado de Sincronización
+
 struct SyncResult {
-    let itemsSynced: Int
-    let itemsFailed: Int
-    let errors: [Error]
+    let uploadedCount: Int
+    let downloadedCount: Int
+    let mergedCount: Int
+    let failedCount: Int
 
     var isSuccess: Bool {
-        itemsFailed == 0
+        failedCount == 0
     }
 
     var hasPartialSuccess: Bool {
-        itemsSynced > 0 && itemsFailed > 0
+        mergedCount > 0 && failedCount > 0
     }
 }
 

@@ -61,7 +61,7 @@ struct LibraryNovelCard: View {
                     .frame(height: 6)
 
                     HStack {
-                        Text("Capítulo \(novel.currentChapterOrder) de \(novel.totalChapters)")
+                        Text("Capítulo \(novel.currentChapter) de \(novel.totalChapters)")
                             .typography(Typography.labelSmall, color: .textSecondary)
 
                         Spacer()
@@ -83,8 +83,8 @@ struct LibraryNovelCard: View {
 
                     Spacer()
 
-                    // Sync indicator
-                    if novel.needsSync {
+                    // Sync indicator - show if there's unsynced reading time
+                    if novel.unsyncedDelta > 0 {
                         HStack(spacing: 4) {
                             Image(systemName: "arrow.triangle.2.circlepath")
                                 .font(.caption2)
@@ -92,10 +92,6 @@ struct LibraryNovelCard: View {
                                 .typography(Typography.labelSmall)
                         }
                         .foregroundColor(.orange)
-                    } else if novel.lastSyncDate != nil {
-                        Image(systemName: "checkmark.icloud")
-                            .font(.caption)
-                            .foregroundColor(.green)
                     }
                 }
             }

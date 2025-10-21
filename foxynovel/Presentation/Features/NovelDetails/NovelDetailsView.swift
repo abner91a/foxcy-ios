@@ -201,7 +201,7 @@ struct NovelDetailsView: View {
     private var continueReadingStickyButton: some View {
         Group {
             if let progress = savedProgress {
-                PrimaryButton("Continuar leyendo - Cap. \(progress.currentChapterOrder)") {
+                PrimaryButton("Continuar leyendo - Cap. \(progress.currentChapter)") {
                     selectedChapterId = progress.currentChapterId
                     showingChapterReader = true
                 }
