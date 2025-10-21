@@ -9,6 +9,7 @@ import SwiftUI
 
 struct MainTabView: View {
     @State private var selectedTab = 0
+    @StateObject private var profileViewModel = ProfileViewModel()
 
     var body: some View {
         TabView(selection: $selectedTab) {
@@ -34,7 +35,8 @@ struct MainTabView: View {
                 .tag(2)
 
             // Profile Tab
-            ProfilePlaceholderView()
+            ProfileView()
+                .environmentObject(profileViewModel)
                 .tabItem {
                     Label("Perfil", systemImage: "person.fill")
                 }

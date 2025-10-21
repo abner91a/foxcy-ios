@@ -32,11 +32,21 @@ final class TokenManager: TokenProvider {
 
     // MARK: - Access Token
     func getAccessToken() -> String? {
-        return KeychainHelper.read(key: accessTokenKey)
+        let token = KeychainHelper.read(key: accessTokenKey)
+        #if DEBUG
+        print("🔑 [TokenManager] Reading access token: \(token != nil ? "✅ Found" : "❌ Not found")")
+        if let token = token {
+            print("🔑 [TokenManager] Token preview: \(token.prefix(20))...")
+        }
+        #endif
+        return token
     }
 
     func saveAccessToken(_ token: String) {
         KeychainHelper.save(key: accessTokenKey, value: token)
+        #if DEBUG
+        print("💾 [TokenManager] Saved access token: \(token.prefix(20))...")
+        #endif
     }
 
     func deleteAccessToken() {
@@ -58,17 +68,29 @@ final class TokenManager: TokenProvider {
 
     // MARK: - Token Validation
     func isTokenValid() -> Bool {
-        guard let token = getAccessToken() else { return false }
+        guard let token = getAccessToken() else {
+            #if DEBUG
+            print("⚠️ [TokenManager] No token found, validation failed")
+            #endif
+            return false
+        }
 
         // Decode JWT and check expiration
         let segments = token.components(separatedBy: ".")
         guard segments.count > 1,
               let payloadData = base64UrlDecode(segments[1]),
               let payload = try? JSONDecoder().decode(JWTPayload.self, from: payloadData) else {
+            #if DEBUG
+            print("⚠️ [TokenManager] Token decode failed")
+            #endif
             return false
         }
 
-        return payload.exp > Date().timeIntervalSince1970
+        let isValid = payload.exp > Date().timeIntervalSince1970
+        #if DEBUG
+        print("✅ [TokenManager] Token validation: \(isValid ? "Valid ✓" : "Expired ✗")")
+        #endif
+        return isValid
     }
 
     private func base64UrlDecode(_ value: String) -> Data? {

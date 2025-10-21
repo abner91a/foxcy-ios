@@ -36,22 +36,9 @@
 		07B473D82E9D55AC00CFF9FB /* foxynovelUITests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = foxynovelUITests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
-/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
-		075350DA2EA75B7E001A7137 /* Exceptions for "foxynovel" folder in "foxynovel" target */ = {
-			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
-			membershipExceptions = (
-				Info.plist,
-			);
-			target = 07B473BE2E9D55AA00CFF9FB /* foxynovel */;
-		};
-/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
-
 /* Begin PBXFileSystemSynchronizedRootGroup section */
 		07B473C12E9D55AA00CFF9FB /* foxynovel */ = {
 			isa = PBXFileSystemSynchronizedRootGroup;
-			exceptions = (
-				075350DA2EA75B7E001A7137 /* Exceptions for "foxynovel" folder in "foxynovel" target */,
-			);
 			path = foxynovel;
 			sourceTree = "<group>";
 		};

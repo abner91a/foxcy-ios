@@ -13,4 +13,7 @@ protocol AuthRepositoryProtocol {
     func logout() async throws
     func getCurrentUser() async throws -> User?
     func isAuthenticated() -> Bool
+    func signInWithGoogle() async throws -> AuthResponse
+    func refreshAccessToken() async throws -> AuthResponse
+    func registerDeviceToken(_ fcmToken: String) async throws
 }

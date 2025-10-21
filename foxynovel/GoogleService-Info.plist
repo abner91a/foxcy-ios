@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<key>CLIENT_ID</key>
+	<string>710904413386-n34kt3kkjv2fu8jicvgrr0g30hbcvcu0.apps.googleusercontent.com</string>
+	<key>REVERSED_CLIENT_ID</key>
+	<string>com.googleusercontent.apps.710904413386-n34kt3kkjv2fu8jicvgrr0g30hbcvcu0</string>
+	<key>ANDROID_CLIENT_ID</key>
+	<string>710904413386-b9pi68rqmm9amhv0toglugm9ooebpvjp.apps.googleusercontent.com</string>
+	<key>API_KEY</key>
+	<string>AIzaSyB_EETeS4t-hEpZmDWbs9MW05nKgWUYOwM</string>
+	<key>GCM_SENDER_ID</key>
+	<string>710904413386</string>
+	<key>PLIST_VERSION</key>
+	<string>1</string>
+	<key>BUNDLE_ID</key>
+	<string>ajc.foxynovel</string>
+	<key>PROJECT_ID</key>
+	<string>foxy-notifications</string>
+	<key>STORAGE_BUCKET</key>
+	<string>foxy-notifications.firebasestorage.app</string>
+	<key>IS_ADS_ENABLED</key>
+	<false></false>
+	<key>IS_ANALYTICS_ENABLED</key>
+	<false></false>
+	<key>IS_APPINVITE_ENABLED</key>
+	<true></true>
+	<key>IS_GCM_ENABLED</key>
+	<true></true>
+	<key>IS_SIGNIN_ENABLED</key>
+	<true></true>
+	<key>GOOGLE_APP_ID</key>
+	<string>1:710904413386:ios:21da4b3f99fa2caa2c4833</string>
+</dict>
+</plist>

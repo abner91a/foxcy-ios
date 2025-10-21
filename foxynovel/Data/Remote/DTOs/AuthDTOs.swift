@@ -19,10 +19,35 @@ struct RegisterRequestDTO: Encodable {
     let username: String
 }
 
+struct GoogleSignInRequestDTO: Encodable {
+    let idToken: String
+}
+
+struct RefreshTokenRequestDTO: Encodable {
+    let refreshToken: String
+}
+
+struct RegisterDeviceTokenRequestDTO: Encodable {
+    let token: String
+    let platform: String
+    let tokenType: String
+    let appVersion: String?
+    let deviceInfo: DeviceInfo?
+
+    struct DeviceInfo: Encodable {
+        let model: String?
+        let systemVersion: String?
+        let deviceId: String?
+        let brand: String = "Apple"
+        let isDevice: Bool = true
+    }
+}
+
 // MARK: - Response DTOs
 struct AuthResponseDTO: Decodable {
-    let token: String
+    let accessToken: String
     let refreshToken: String?
+    let expiresIn: Int?
     let user: UserDTO
 }
 
@@ -38,7 +63,7 @@ struct UserDTO: Decodable {
 extension AuthResponseDTO {
     func toDomain() -> AuthResponse {
         return AuthResponse(
-            token: token,
+            token: accessToken,
             refreshToken: refreshToken,
             user: user.toDomain()
         )
