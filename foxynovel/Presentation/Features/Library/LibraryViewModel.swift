@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import OSLog
 
 @MainActor
 class LibraryViewModel: ObservableObject {
@@ -63,16 +64,19 @@ class LibraryViewModel: ObservableObject {
         self.progressRepository = progressRepository
         self.authRepository = authRepository
 
+        // Set initial authentication state
+        self.wasAuthenticated = authRepository.isAuthenticated()
+
         // 🚀 Auto-sync cuando el usuario hace login (match con Android)
-        // Detecta cambios en el estado de autenticación (false → true)
+        // Detecta cambios en el estado de autenticación usando NotificationCenter (event-driven)
         setupAuthenticationObserver()
     }
 
     /// Configurar observación de autenticación para auto-sync
+    /// ✅ Event-driven approach usando NotificationCenter (Mejor práctica vs Timer polling)
     private func setupAuthenticationObserver() {
-        // Verificar periódicamente el estado de autenticación
-        Timer.publish(every: 1.0, on: .main, in: .common)
-            .autoconnect()
+        NotificationCenter.default
+            .publisher(for: .authenticationDidChange)
             .sink { [weak self] _ in
                 guard let self = self else { return }
 
@@ -80,9 +84,7 @@ class LibraryViewModel: ObservableObject {
 
                 // Detectar transición de no autenticado → autenticado
                 if isCurrentlyAuth && !self.wasAuthenticated {
-                    #if DEBUG
-                    print("🔑 [LibraryViewModel] User logged in, triggering auto-sync...")
-                    #endif
+                    Logger.syncLog("🔑", "[LibraryViewModel] User logged in, triggering auto-sync...")
 
                     // Pequeño delay para asegurar que el token esté listo
                     Task {
@@ -94,6 +96,12 @@ class LibraryViewModel: ObservableObject {
                 self.wasAuthenticated = isCurrentlyAuth
             }
             .store(in: &cancellables)
+    }
+
+    /// Cleanup cuando se destruye el ViewModel
+    deinit {
+        cancellables.removeAll()
+        Logger.syncLog("🗑️", "[LibraryViewModel] Deinitialized and cleaned up subscriptions")
     }
 
     func loadLibrary() async {
@@ -120,16 +128,11 @@ class LibraryViewModel: ObservableObject {
             // Recargar historial después de sync exitoso
             await loadLibrary()
 
-            #if DEBUG
-            print("✅ [LibraryViewModel] Sync completed: \(result)")
-            #endif
+            Logger.syncLog("✅", "[LibraryViewModel] Sync completed: \(result)")
 
         } catch {
             errorMessage = "Error al sincronizar: \(error.localizedDescription)"
-
-            #if DEBUG
-            print("❌ [LibraryViewModel] Sync failed: \(error)")
-            #endif
+            Logger.error("[LibraryViewModel] Sync failed: \(error)", category: Logger.sync)
         }
     }
 
@@ -137,16 +140,10 @@ class LibraryViewModel: ObservableObject {
         do {
             try await progressRepository.deleteProgress(novelId: novelId, syncWithBackend: syncWithBackend)
             await loadLibrary()
-
-            #if DEBUG
-            print("✅ [LibraryViewModel] Deleted novel: \(novelId)")
-            #endif
+            Logger.syncLog("✅", "[LibraryViewModel] Deleted novel: \(novelId)")
         } catch {
             errorMessage = "Error al eliminar: \(error.localizedDescription)"
-
-            #if DEBUG
-            print("❌ [LibraryViewModel] Delete failed: \(error)")
-            #endif
+            Logger.error("[LibraryViewModel] Delete failed: \(error)", category: Logger.sync)
         }
     }
 

@@ -9,6 +9,7 @@ import Foundation
 import UIKit
 import GoogleSignIn
 import FirebaseMessaging
+import OSLog
 
 final class AuthRepositoryImpl: AuthRepositoryProtocol {
     private let networkClient: NetworkClientProtocol
@@ -38,6 +39,9 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         // Cache user data locally for fast access
         UserStorage.saveUser(authResponse.user)
 
+        // Notify observers that authentication state changed
+        NotificationCenter.default.post(name: .authenticationDidChange, object: nil)
+
         return authResponse
     }
 
@@ -57,6 +61,9 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         // Cache user data locally for fast access
         UserStorage.saveUser(authResponse.user)
 
+        // Notify observers that authentication state changed
+        NotificationCenter.default.post(name: .authenticationDidChange, object: nil)
+
         return authResponse
     }
 
@@ -64,6 +71,9 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         tokenManager.removeToken()
         // Clear cached user data on logout
         UserStorage.clearUser()
+
+        // Notify observers that authentication state changed
+        NotificationCenter.default.post(name: .authenticationDidChange, object: nil)
     }
 
     func getCurrentUser() async throws -> User? {
@@ -73,13 +83,11 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         // User data is cached after login/register/signIn
         let cachedUser = UserStorage.loadUser()
 
-        #if DEBUG
         if let user = cachedUser {
-            print("✅ [AuthRepository] User loaded from cache: \(user.email)")
+            Logger.authLog("✅", "[AuthRepository] User loaded from cache: \(user.email)")
         } else {
-            print("⚠️ [AuthRepository] No cached user found - user needs to login")
+            Logger.debug("[AuthRepository] No cached user found - user needs to login", category: Logger.auth)
         }
-        #endif
 
         return cachedUser
     }
@@ -103,9 +111,7 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
             throw NSError(domain: "Auth", code: -1, userInfo: [NSLocalizedDescriptionKey: "No ID token received from Google"])
         }
 
-        #if DEBUG
-        print("✅ Google Sign-In successful, got ID token")
-        #endif
+        Logger.authLog("✅", "[AuthRepository] Google Sign-In successful, got ID token")
 
         // 4. Send to backend
         let endpoint = AuthEndpoints.googleSignInIOS(idToken: idToken)
@@ -118,14 +124,15 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
             (tokenManager as? TokenManager)?.saveRefreshToken(refreshToken)
         }
 
-        #if DEBUG
-        print("✅ Backend authentication successful")
-        #endif
+        Logger.authLog("✅", "[AuthRepository] Backend authentication successful")
 
         let authResponse = response.toDomain()
 
         // Cache user data locally for fast access
         UserStorage.saveUser(authResponse.user)
+
+        // Notify observers that authentication state changed
+        NotificationCenter.default.post(name: .authenticationDidChange, object: nil)
 
         return authResponse
     }
@@ -174,8 +181,6 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         struct EmptyResponse: Decodable {}
         let _: ApiResponse<EmptyResponse> = try await networkClient.request(endpoint)
 
-        #if DEBUG
-        print("✅ FCM token registered successfully")
-        #endif
+        Logger.authLog("✅", "[AuthRepository] FCM token registered successfully")
     }
 }

@@ -7,6 +7,7 @@
 
 import Foundation
 import Security
+import OSLog
 
 final class TokenManager: TokenProvider {
     static let shared = TokenManager()
@@ -33,20 +34,16 @@ final class TokenManager: TokenProvider {
     // MARK: - Access Token
     func getAccessToken() -> String? {
         let token = KeychainHelper.read(key: accessTokenKey)
-        #if DEBUG
-        print("🔑 [TokenManager] Reading access token: \(token != nil ? "✅ Found" : "❌ Not found")")
+        Logger.authLog("🔑", "[TokenManager] Reading access token: \(token != nil ? "✅ Found" : "❌ Not found")")
         if let token = token {
-            print("🔑 [TokenManager] Token preview: \(token.prefix(20))...")
+            Logger.authLog("🔑", "[TokenManager] Token preview: \(token.prefix(20))...")
         }
-        #endif
         return token
     }
 
     func saveAccessToken(_ token: String) {
         KeychainHelper.save(key: accessTokenKey, value: token)
-        #if DEBUG
-        print("💾 [TokenManager] Saved access token: \(token.prefix(20))...")
-        #endif
+        Logger.authLog("💾", "[TokenManager] Saved access token: \(token.prefix(20))...")
     }
 
     func deleteAccessToken() {
@@ -69,53 +66,50 @@ final class TokenManager: TokenProvider {
     // MARK: - Token Validation
     func isTokenValid() -> Bool {
         guard let token = getAccessToken() else {
-            #if DEBUG
-            print("⚠️ [TokenManager] No token found, validation failed")
-            #endif
+            Logger.authLog("⚠️", "[TokenManager] No token found, validation failed")
             return false
         }
 
-        // Decode JWT and check expiration
-        let segments = token.components(separatedBy: ".")
-        guard segments.count > 1,
-              let payloadData = base64UrlDecode(segments[1]),
-              let payload = try? JSONDecoder().decode(JWTPayload.self, from: payloadData) else {
-            #if DEBUG
-            print("⚠️ [TokenManager] Token decode failed")
-            #endif
-            return false
-        }
+        // ✅ Usar JWTDecoder centralizado
+        let isValid = JWTDecoder.isValid(token)
 
-        let isValid = payload.exp > Date().timeIntervalSince1970
-        #if DEBUG
-        print("✅ [TokenManager] Token validation: \(isValid ? "Valid ✓" : "Expired ✗")")
-        #endif
+        Logger.authLog("✅", "[TokenManager] Token validation: \(isValid ? "Valid ✓" : "Expired ✗")")
         return isValid
     }
 
-    private func base64UrlDecode(_ value: String) -> Data? {
-        var base64 = value
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
+    // MARK: - Proactive Refresh
 
-        let length = Double(base64.lengthOfBytes(using: .utf8))
-        let requiredLength = 4 * ceil(length / 4.0)
-        let paddingLength = requiredLength - length
-        if paddingLength > 0 {
-            let padding = "".padding(toLength: Int(paddingLength), withPad: "=", startingAt: 0)
-            base64 += padding
+    /// Verifica si el token debe refrescarse proactivamente
+    /// - Parameter bufferMinutes: Minutos antes de expiración para refrescar (default: 5)
+    /// - Returns: true si el token expira en menos de bufferMinutes
+    func shouldRefreshProactively(bufferMinutes: TimeInterval = 5) -> Bool {
+        guard let token = getAccessToken() else {
+            return false // No token, no refresh
         }
 
-        return Data(base64Encoded: base64)
-    }
-}
+        guard let timeLeft = JWTDecoder.timeUntilExpiration(token) else {
+            return false // Token inválido, el refresh reactivo lo manejará
+        }
 
-// MARK: - JWT Payload
-struct JWTPayload: Decodable {
-    let exp: TimeInterval
-    let iat: TimeInterval?
-    let id: String?
-    let email: String?
+        let bufferSeconds = bufferMinutes * 60
+        let shouldRefresh = timeLeft < bufferSeconds
+
+        if shouldRefresh {
+            Logger.authLog("⏰", "[TokenManager] Token expires in \(Int(timeLeft))s - proactive refresh needed")
+        }
+
+        return shouldRefresh
+    }
+
+    /// Obtiene tiempo restante hasta expiración en minutos
+    /// - Returns: Minutos restantes, o nil si no hay token válido
+    func minutesUntilExpiration() -> Int? {
+        guard let token = getAccessToken(),
+              let timeLeft = JWTDecoder.timeUntilExpiration(token) else {
+            return nil
+        }
+        return Int(timeLeft / 60)
+    }
 }
 
 // MARK: - Keychain Helper

@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import OSLog
 
 @MainActor
 final class NovelDetailsViewModel: ObservableObject {
@@ -70,7 +71,7 @@ final class NovelDetailsViewModel: ObservableObject {
 
         } catch {
             errorMessage = "Error al cargar los detalles: \(error.localizedDescription)"
-            print("Error loading novel details: \(error)")
+            Logger.error("[NovelDetails] Error loading novel details: \(error)", category: Logger.ui)
         }
 
         isLoading = false
@@ -95,7 +96,7 @@ final class NovelDetailsViewModel: ObservableObject {
             hasMoreChapters = response.pagination.hasMore
 
         } catch {
-            print("Error loading initial chapters: \(error)")
+            Logger.error("[NovelDetails] Error loading initial chapters: \(error)", category: Logger.ui)
             // Si falla, intentar usar los capítulos del details como fallback
             if let details = novelDetails {
                 chapters = details.chapters
@@ -133,7 +134,7 @@ final class NovelDetailsViewModel: ObservableObject {
             hasMoreChapters = response.pagination.hasMore
 
         } catch {
-            print("Error loading more chapters: \(error)")
+            Logger.error("[NovelDetails] Error loading more chapters: \(error)", category: Logger.ui)
             // No mostramos error al usuario para no interrumpir UX
         }
 
@@ -169,7 +170,7 @@ final class NovelDetailsViewModel: ObservableObject {
             // Revert on error
             isFavorite.toggle()
             errorMessage = "Error al actualizar favorito"
-            print("Error toggling favorite: \(error)")
+            Logger.error("[NovelDetails] Error toggling favorite: \(error)", category: Logger.ui)
         }
     }
 
@@ -185,14 +186,14 @@ final class NovelDetailsViewModel: ObservableObject {
             // Revert on error
             isLiked.toggle()
             errorMessage = "Error al actualizar like"
-            print("Error toggling like: \(error)")
+            Logger.error("[NovelDetails] Error toggling like: \(error)", category: Logger.ui)
         }
     }
 
     func shareNovel() {
         guard let novel = novelDetails else { return }
         // TODO: Implement share functionality
-        print("Sharing novel: \(novel.title)")
+        Logger.debug("[NovelDetails] Sharing novel: \(novel.title)", category: Logger.ui)
     }
 
     func loadSimilarNovels() async {
@@ -203,9 +204,9 @@ final class NovelDetailsViewModel: ObservableObject {
         do {
             let response = try await novelRepository.getSimilarNovels(novelId: novelId)
             similarNovels = response.novels
-            print("✅ Loaded \(response.novels.count) similar novels")
+            Logger.uiLog("✅", "[NovelDetails] Loaded \(response.novels.count) similar novels")
         } catch {
-            print("❌ Error loading similar novels: \(error)")
+            Logger.error("[NovelDetails] Error loading similar novels: \(error)", category: Logger.ui)
             // No mostramos error al usuario - las novelas similares son opcionales
         }
 
@@ -217,30 +218,11 @@ final class NovelDetailsViewModel: ObservableObject {
     private func getUserIdFromToken() -> String? {
         guard let token = tokenManager.getToken() else { return nil }
 
-        // Decode JWT to get user ID
-        let segments = token.components(separatedBy: ".")
-        guard segments.count > 1,
-              let payloadData = base64UrlDecode(segments[1]),
-              let payload = try? JSONDecoder().decode(JWTPayload.self, from: payloadData) else {
+        // ✅ Usar JWTDecoder centralizado para decodificar token
+        guard let payload = JWTDecoder.decode(token) else {
             return nil
         }
 
         return payload.id
-    }
-
-    private func base64UrlDecode(_ value: String) -> Data? {
-        var base64 = value
-            .replacingOccurrences(of: "-", with: "+")
-            .replacingOccurrences(of: "_", with: "/")
-
-        let length = Double(base64.lengthOfBytes(using: .utf8))
-        let requiredLength = 4 * ceil(length / 4.0)
-        let paddingLength = requiredLength - length
-        if paddingLength > 0 {
-            let padding = "".padding(toLength: Int(paddingLength), withPad: "=", startingAt: 0)
-            base64 += padding
-        }
-
-        return Data(base64Encoded: base64)
     }
 }

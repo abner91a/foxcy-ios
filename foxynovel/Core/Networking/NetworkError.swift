@@ -15,6 +15,7 @@ enum NetworkError: LocalizedError {
     case serverError(statusCode: Int, message: String?)
     case unauthorized
     case networkFailure(Error)
+    case maxRetriesExceeded  // ✅ Prevenir recursión infinita en token refresh
     case unknown
 
     var errorDescription: String? {
@@ -33,6 +34,8 @@ enum NetworkError: LocalizedError {
             return "Unauthorized. Please login again."
         case .networkFailure(let error):
             return "Network failure: \(error.localizedDescription)"
+        case .maxRetriesExceeded:
+            return "Maximum retry attempts exceeded. Please try again later."
         case .unknown:
             return "An unknown error occurred"
         }

@@ -8,6 +8,7 @@
 import SwiftUI
 import Combine
 import FirebaseMessaging
+import OSLog
 
 @MainActor
 class ProfileViewModel: ObservableObject {
@@ -15,40 +16,67 @@ class ProfileViewModel: ObservableObject {
     @Published var isAuthenticated: Bool = false
     @Published var isLoading: Bool = false
     @Published var errorMessage: String?
+    @Published var showSessionExpiredAlert: Bool = false
 
     private let authRepository: AuthRepositoryProtocol
     private let tokenManager: TokenManager
+    private var cancellables = Set<AnyCancellable>()
 
     init(authRepository: AuthRepositoryProtocol = DIContainer.shared.authRepository,
          tokenManager: TokenManager = TokenManager.shared) {
         self.authRepository = authRepository
         self.tokenManager = tokenManager
 
+        setupNotificationObservers()
         checkAuthStatus()
     }
 
+    /// Setup observers for authentication events
+    private func setupNotificationObservers() {
+        // Observe session expiration events
+        NotificationCenter.default.publisher(for: .sessionExpired)
+            .receive(on: DispatchQueue.main)
+            .sink { [weak self] notification in
+                self?.handleSessionExpired(notification: notification)
+            }
+            .store(in: &cancellables)
+    }
+
+    /// Handle session expiration notification
+    private func handleSessionExpired(notification: Notification) {
+        Logger.authLog("🚪", "[ProfileViewModel] Session expired notification received")
+
+        // Update UI state
+        user = nil
+        isAuthenticated = false
+        showSessionExpiredAlert = true
+
+        // Log reason for analytics
+        if let reason = notification.userInfo?["reason"] as? String {
+            Logger.debug("[ProfileViewModel] Session expired reason: \(reason)", category: Logger.auth)
+        }
+    }
+
+    deinit {
+        cancellables.removeAll()
+    }
+
     func checkAuthStatus() {
-        #if DEBUG
-        print("🔍 [ProfileViewModel] Checking auth status...")
-        #endif
+        Logger.authLog("🔍", "[ProfileViewModel] Checking auth status...")
 
         isAuthenticated = authRepository.isAuthenticated()
 
-        #if DEBUG
-        print("🔍 [ProfileViewModel] Is authenticated: \(isAuthenticated)")
-        #endif
+        Logger.authLog("🔍", "[ProfileViewModel] Is authenticated: \(isAuthenticated)")
 
         if isAuthenticated {
             // Load user from cache - ALWAYS available after login
             user = UserStorage.loadUser()
 
-            #if DEBUG
             if let user = user {
-                print("✅ [ProfileViewModel] User loaded from cache: \(user.email)")
+                Logger.authLog("✅", "[ProfileViewModel] User loaded from cache: \(user.email)")
             } else {
-                print("⚠️ [ProfileViewModel] No cached user found - user needs to login")
+                Logger.debug("[ProfileViewModel] No cached user found - user needs to login", category: Logger.auth)
             }
-            #endif
 
             // NO automatic refresh - user controls updates via pull-to-refresh
         }
@@ -58,9 +86,7 @@ class ProfileViewModel: ObservableObject {
     /// Currently reloads from cache. In the future, you can call a server endpoint here
     /// if you need to fetch updated data (e.g., after profile edit from another device)
     func refreshUserData() async {
-        #if DEBUG
-        print("🔄 [ProfileViewModel] Manual refresh requested")
-        #endif
+        Logger.authLog("🔄", "[ProfileViewModel] Manual refresh requested")
 
         isLoading = true
 
@@ -76,9 +102,7 @@ class ProfileViewModel: ObservableObject {
 
         isLoading = false
 
-        #if DEBUG
-        print("✅ [ProfileViewModel] Refresh completed")
-        #endif
+        Logger.authLog("✅", "[ProfileViewModel] Refresh completed")
     }
 
     func signInWithGoogle() async {
@@ -90,18 +114,14 @@ class ProfileViewModel: ObservableObject {
             user = authResponse.user
             isAuthenticated = true
 
-            #if DEBUG
-            print("✅ User authenticated: \(authResponse.user.email)")
-            #endif
+            Logger.authLog("✅", "[ProfileViewModel] User authenticated: \(authResponse.user.email)")
 
             // Registrar FCM token después del login
             await registerFCMToken()
 
         } catch {
             errorMessage = "Error al iniciar sesión: \(error.localizedDescription)"
-            #if DEBUG
-            print("❌ Google Sign-In error: \(error)")
-            #endif
+            Logger.error("[ProfileViewModel] Google Sign-In error: \(error)", category: Logger.auth)
         }
 
         isLoading = false
@@ -112,54 +132,46 @@ class ProfileViewModel: ObservableObject {
             try await authRepository.logout()
             user = nil
             isAuthenticated = false
-            #if DEBUG
-            print("✅ User signed out successfully")
-            #endif
+            Logger.authLog("✅", "[ProfileViewModel] User signed out successfully")
         } catch {
             errorMessage = "Error al cerrar sesión"
-            #if DEBUG
-            print("❌ Sign out error: \(error)")
-            #endif
+            Logger.error("[ProfileViewModel] Sign out error: \(error)", category: Logger.auth)
         }
     }
 
     private func loadUserProfile() async {
-        #if DEBUG
-        print("👤 [ProfileViewModel] Loading user profile from cache...")
-        #endif
+        Logger.authLog("👤", "[ProfileViewModel] Loading user profile from cache...")
 
         // getCurrentUser() now only reads from cache (never fails)
         user = try? await authRepository.getCurrentUser()
 
-        #if DEBUG
         if let user = user {
-            print("✅ [ProfileViewModel] User profile loaded: \(user.email)")
+            Logger.authLog("✅", "[ProfileViewModel] User profile loaded: \(user.email)")
         } else {
-            print("⚠️ [ProfileViewModel] No cached user - needs login")
+            Logger.debug("[ProfileViewModel] No cached user - needs login", category: Logger.auth)
         }
-        #endif
     }
 
     private func registerFCMToken() async {
         #if targetEnvironment(simulator)
-        print("ℹ️ FCM registration skipped on simulator (simulators don't support APNS)")
-        print("ℹ️ FCM will work automatically on real devices")
+        Logger.info("[ProfileViewModel] FCM registration skipped on simulator (simulators don't support APNS)", category: Logger.config)
+        Logger.info("[ProfileViewModel] FCM will work automatically on real devices", category: Logger.config)
         return
         #else
         do {
             // Obtener FCM token (requires APNS token to be set first)
             let fcmToken = try await Messaging.messaging().token()
-            print("📱 FCM Token obtained: \(fcmToken.prefix(20))...")
+            Logger.authLog("📱", "[ProfileViewModel] FCM Token obtained: \(fcmToken.prefix(20))...")
 
             // Registrar en backend
             try await authRepository.registerDeviceToken(fcmToken)
-            print("✅ FCM token registered with backend")
+            Logger.authLog("✅", "[ProfileViewModel] FCM token registered with backend")
         } catch let error as NSError {
             // Handle FCM-specific errors gracefully
             if error.domain == "com.google.fcm" && error.code == 505 {
-                print("ℹ️ FCM token not available (APNS token not set yet)")
+                Logger.info("[ProfileViewModel] FCM token not available (APNS token not set yet)", category: Logger.auth)
             } else {
-                print("⚠️ Could not register FCM token: \(error.localizedDescription)")
+                Logger.error("[ProfileViewModel] Could not register FCM token: \(error.localizedDescription)", category: Logger.auth)
             }
             // Don't block authentication flow if FCM registration fails
         }

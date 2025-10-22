@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 /// Manages secure local storage for user data (non-sensitive information only)
 /// Tokens are stored in Keychain via TokenManager for security
@@ -25,20 +26,16 @@ final class UserStorage {
             defaults.set(data, forKey: userKey)
             defaults.set(Date(), forKey: lastUpdateKey)
 
-            #if DEBUG
-            print("💾 [UserStorage] User cached: \(user.email)")
-            #endif
+            Logger.authLog("💾", "[UserStorage] User cached: \(user.email)")
         } catch {
-            print("❌ [UserStorage] Failed to save user: \(error)")
+            Logger.error("[UserStorage] Failed to save user: \(error)", category: Logger.auth)
         }
     }
 
     /// Load user data from local cache
     static func loadUser() -> User? {
         guard let data = defaults.data(forKey: userKey) else {
-            #if DEBUG
-            print("ℹ️ [UserStorage] No cached user found")
-            #endif
+            Logger.info("[UserStorage] No cached user found", category: Logger.auth)
             return nil
         }
 
@@ -46,13 +43,11 @@ final class UserStorage {
             let decoder = JSONDecoder()
             let user = try decoder.decode(User.self, from: data)
 
-            #if DEBUG
-            print("✅ [UserStorage] User loaded from cache: \(user.email)")
-            #endif
+            Logger.authLog("✅", "[UserStorage] User loaded from cache: \(user.email)")
 
             return user
         } catch {
-            print("❌ [UserStorage] Failed to load user: \(error)")
+            Logger.error("[UserStorage] Failed to load user: \(error)", category: Logger.auth)
             return nil
         }
     }
@@ -62,9 +57,7 @@ final class UserStorage {
         defaults.removeObject(forKey: userKey)
         defaults.removeObject(forKey: lastUpdateKey)
 
-        #if DEBUG
-        print("🗑️ [UserStorage] User cache cleared")
-        #endif
+        Logger.authLog("🗑️", "[UserStorage] User cache cleared")
     }
 
     // MARK: - Cache Freshness
@@ -80,11 +73,9 @@ final class UserStorage {
         let age = Date().timeIntervalSince(lastUpdate)
         let shouldRefresh = age > maxAge
 
-        #if DEBUG
         if shouldRefresh {
-            print("⏰ [UserStorage] Cache is stale (age: \(Int(age))s), should refresh")
+            Logger.debug("[UserStorage] Cache is stale (age: \(Int(age))s), should refresh", category: Logger.auth)
         }
-        #endif
 
         return shouldRefresh
     }

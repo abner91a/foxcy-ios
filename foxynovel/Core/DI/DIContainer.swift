@@ -7,6 +7,7 @@
 
 import Foundation
 import SwiftData
+import OSLog
 
 final class DIContainer {
     static let shared = DIContainer()
@@ -54,23 +55,49 @@ final class DIContainer {
     // MARK: - SwiftData
     lazy var modelContainer: ModelContainer = {
         do {
+            Logger.databaseLog("📦", "[DIContainer] Initializing ModelContainer with migration plan...")
+
             let container = try ModelContainer(
                 for: ReadingProgress.self,
+                migrationPlan: ReadingProgressMigrationPlan.self, // ✅ Migration support
                 configurations: ModelConfiguration(
                     isStoredInMemoryOnly: false
                 )
             )
+
+            Logger.databaseLog("✅", "[DIContainer] ModelContainer initialized successfully")
+            Logger.debug("   Schema version: \(container.schema.encodingVersion)", category: Logger.database)
+            Logger.debug("   Migration plan: ReadingProgressMigrationPlan", category: Logger.database)
+
             return container
         } catch {
+            Logger.error("[DIContainer] Failed to initialize ModelContainer: \(error)", category: Logger.database)
             fatalError("Could not initialize ModelContainer: \(error)")
         }
     }()
 
     lazy var readingProgressRepository: ReadingProgressRepository = {
-        ReadingProgressRepositoryImpl(
+        // ✅ Safe casting con mensajes de error descriptivos
+        guard let client = networkClient as? NetworkClient else {
+            #if DEBUG
+            fatalError("❌ DI Configuration Error: NetworkClient implementation mismatch. Expected NetworkClient, got \(type(of: networkClient))")
+            #else
+            fatalError("Critical initialization error. Please reinstall the app.")
+            #endif
+        }
+
+        guard let manager = tokenManager as? TokenManager else {
+            #if DEBUG
+            fatalError("❌ DI Configuration Error: TokenManager implementation mismatch. Expected TokenManager, got \(type(of: tokenManager))")
+            #else
+            fatalError("Critical initialization error. Please reinstall the app.")
+            #endif
+        }
+
+        return ReadingProgressRepositoryImpl(
             modelContext: modelContainer.mainContext,
-            networkClient: networkClient as! NetworkClient,
-            tokenManager: tokenManager as! TokenManager
+            networkClient: client,
+            tokenManager: manager
         )
     }()
 }

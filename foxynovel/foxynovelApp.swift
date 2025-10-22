@@ -11,10 +11,16 @@ import FirebaseCore
 import FirebaseMessaging
 import GoogleSignIn
 import UserNotifications
+import OSLog
 
 @main
 struct foxynovelApp: App {
     @UIApplicationDelegateAdaptor(AppDelegate.self) var delegate
+
+    init() {
+        // Inicializar observador de lifecycle para refresh proactivo de tokens
+        _ = AppLifecycleObserver.shared
+    }
 
     var body: some Scene {
         WindowGroup {
@@ -35,7 +41,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                      didFinishLaunchingWithOptions launchOptions: [UIApplication.LaunchOptionsKey : Any]? = nil) -> Bool {
         // Configure Firebase
         FirebaseApp.configure()
-        print("🔥 Firebase configured successfully")
+        Logger.configLog("🔥", "[App] Firebase configured successfully")
 
         // Configure notification delegates
         UNUserNotificationCenter.current().delegate = self
@@ -45,10 +51,10 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
         let authOptions: UNAuthorizationOptions = [.alert, .badge, .sound]
         UNUserNotificationCenter.current().requestAuthorization(options: authOptions) { granted, error in
             if let error = error {
-                print("⚠️ Error requesting notification permission: \(error.localizedDescription)")
+                Logger.error("[App] Error requesting notification permission: \(error.localizedDescription)", category: Logger.config)
                 return
             }
-            print("📱 Push notification permission: \(granted ? "granted" : "denied")")
+            Logger.configLog("📱", "[App] Push notification permission: \(granted ? "granted" : "denied")")
         }
 
         // Register for remote notifications (will fail silently on simulator)
@@ -67,16 +73,16 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
 
         let tokenParts = deviceToken.map { data in String(format: "%02.2hhx", data) }
         let token = tokenParts.joined()
-        print("✅ APNS token registered: \(token.prefix(20))...")
+        Logger.configLog("✅", "[App] APNS token registered: \(token.prefix(20))...")
     }
 
     /// Called when APNS registration fails (expected on simulator)
     func application(_ application: UIApplication,
                      didFailToRegisterForRemoteNotificationsWithError error: Error) {
         #if targetEnvironment(simulator)
-        print("ℹ️ APNS registration skipped (simulators don't support push notifications)")
+        Logger.info("[App] APNS registration skipped (simulators don't support push notifications)", category: Logger.config)
         #else
-        print("⚠️ APNS registration failed: \(error.localizedDescription)")
+        Logger.error("[App] APNS registration failed: \(error.localizedDescription)", category: Logger.config)
         #endif
     }
 
@@ -85,11 +91,11 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
     /// Called when FCM token is received or refreshed
     func messaging(_ messaging: Messaging, didReceiveRegistrationToken fcmToken: String?) {
         guard let fcmToken = fcmToken else {
-            print("ℹ️ FCM token not available yet")
+            Logger.info("[App] FCM token not available yet", category: Logger.config)
             return
         }
 
-        print("✅ FCM token received: \(fcmToken.prefix(20))...")
+        Logger.configLog("✅", "[App] FCM token received: \(fcmToken.prefix(20))...")
 
         // Store token in UserDefaults for later use
         UserDefaults.standard.set(fcmToken, forKey: "fcmToken")
@@ -104,7 +110,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                willPresent notification: UNNotification,
                                withCompletionHandler completionHandler: @escaping (UNNotificationPresentationOptions) -> Void) {
         let userInfo = notification.request.content.userInfo
-        print("📬 Notification received while app in foreground: \(userInfo)")
+        Logger.configLog("📬", "[App] Notification received while app in foreground: \(userInfo)")
 
         // Show notification even when app is in foreground
         completionHandler([[.banner, .sound, .badge]])
@@ -114,7 +120,7 @@ class AppDelegate: NSObject, UIApplicationDelegate, UNUserNotificationCenterDele
                                didReceive response: UNNotificationResponse,
                                withCompletionHandler completionHandler: @escaping () -> Void) {
         let userInfo = response.notification.request.content.userInfo
-        print("📬 User tapped notification: \(userInfo)")
+        Logger.configLog("📬", "[App] User tapped notification: \(userInfo)")
 
         // Handle notification tap here (e.g., navigate to specific screen)
 

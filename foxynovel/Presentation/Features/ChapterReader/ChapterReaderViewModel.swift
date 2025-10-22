@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import OSLog
 
 @MainActor
 final class ChapterReaderViewModel: ObservableObject {
@@ -60,7 +61,7 @@ final class ChapterReaderViewModel: ObservableObject {
 
         // Try cache first
         if let cachedContent = cacheManager.get(id: id) {
-            print("📦 Loaded chapter from cache: \(cachedContent.title)")
+            Logger.cacheLog("📦", "[ChapterReader] Loaded chapter from cache: \(cachedContent.title)")
             chapters.append(cachedContent)
             canLoadNext = cachedContent.hasNextChapter
             isLoadingChapter = false
@@ -103,7 +104,7 @@ final class ChapterReaderViewModel: ObservableObject {
 
         // Try cache first
         if let cachedContent = cacheManager.get(id: nextId) {
-            print("📦 Loaded next chapter from cache: \(cachedContent.title)")
+            Logger.cacheLog("📦", "[ChapterReader] Loaded next chapter from cache: \(cachedContent.title)")
             chapters.append(cachedContent)
             canLoadNext = cachedContent.hasNextChapter
             currentChapterId = nextId
@@ -200,9 +201,9 @@ final class ChapterReaderViewModel: ObservableObject {
             hasMoreChaptersToLoad = response.pagination.hasMore
             isLoadingChaptersList = false
 
-            print("📄 Loaded \(response.chapters.count) chapters. Total: \(allChaptersList.count), HasMore: \(hasMoreChaptersToLoad)")
+            Logger.uiLog("📄", "[ChapterReader] Loaded \(response.chapters.count) chapters. Total: \(allChaptersList.count), HasMore: \(hasMoreChaptersToLoad)")
         } catch {
-            print("❌ Error loading chapters list: \(error)")
+            Logger.error("[ChapterReader] Error loading chapters list: \(error)", category: Logger.ui)
             isLoadingChaptersList = false
         }
     }
@@ -267,7 +268,7 @@ final class ChapterReaderViewModel: ObservableObject {
                 try await progressRepository.saveProgress(newProgress)
             }
         } catch {
-            print("❌ Error guardando progreso: \(error)")
+            Logger.error("[ChapterReader] Error guardando progreso: \(error)", category: Logger.sync)
         }
     }
 
@@ -322,7 +323,7 @@ final class ChapterReaderViewModel: ObservableObject {
         let chaptersToRemove = chapters.count - 3
         chapters.removeFirst(chaptersToRemove)
 
-        print("🧹 Cleaned up \(chaptersToRemove) old chapters. Current count: \(chapters.count)")
+        Logger.debug("[ChapterReader] Cleaned up \(chaptersToRemove) old chapters. Current count: \(chapters.count)", category: Logger.cache)
     }
 
     private func triggerPrefetch() async {
@@ -332,7 +333,7 @@ final class ChapterReaderViewModel: ObservableObject {
             return
         }
 
-        print("🔄 Triggering prefetch for next chapter...")
+        Logger.cacheLog("🔄", "[ChapterReader] Triggering prefetch for next chapter...")
         await cacheManager.prefetch(chapterId: nextId, repository: repository)
     }
 }

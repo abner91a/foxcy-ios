@@ -23,6 +23,13 @@ struct ProfileView: View {
                 }
             }
             .navigationTitle("Perfil")
+            .alert("Sesión Expirada", isPresented: $viewModel.showSessionExpiredAlert) {
+                Button("Aceptar", role: .cancel) {
+                    // Alert will dismiss automatically
+                }
+            } message: {
+                Text("Tu sesión ha expirado. Por favor, inicia sesión nuevamente para continuar.")
+            }
         }
     }
 

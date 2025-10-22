@@ -8,6 +8,7 @@
 import SwiftData
 import Foundation
 import Combine
+import OSLog
 
 @MainActor
 class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository {
@@ -35,9 +36,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
         modelContext.insert(progress)
         try modelContext.save()
 
-        #if DEBUG
-        print("✅ [ReadingProgressRepo] Saved progress for novel: \(progress.novelId)")
-        #endif
+        Logger.databaseLog("✅", "[ReadingProgressRepo] Saved progress for novel: \(progress.novelId)")
     }
 
     func updateProgress(
@@ -67,9 +66,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
 
             try modelContext.save()
 
-            #if DEBUG
-            print("✅ [ReadingProgressRepo] Updated progress: \(novelId) → chapter \(chapterOrder)")
-            #endif
+            Logger.databaseLog("✅", "[ReadingProgressRepo] Updated progress: \(novelId) → chapter \(chapterOrder)")
         }
     }
 
@@ -88,9 +85,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
     }
 
     func deleteProgress(novelId: String, syncWithBackend: Bool) async throws {
-        #if DEBUG
-        print("🗑️ [ReadingProgressRepo] Deleting progress: \(novelId) (syncWithBackend=\(syncWithBackend))")
-        #endif
+        Logger.syncLog("🗑️", "[ReadingProgressRepo] Deleting progress: \(novelId) (syncWithBackend=\(syncWithBackend))")
 
         // Paso 1: Eliminar de local inmediatamente (offline-first)
         let descriptor = FetchDescriptor<ReadingProgress>(
@@ -101,9 +96,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
             modelContext.delete(existing)
             try modelContext.save()
 
-            #if DEBUG
-            print("✅ [ReadingProgressRepo] Deleted from local: \(novelId)")
-            #endif
+            Logger.databaseLog("✅", "[ReadingProgressRepo] Deleted from local: \(novelId)")
         }
 
         // Paso 2: Eliminar del backend si está autenticado y se solicita sync
@@ -113,13 +106,9 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
                     LibraryEndpoints.deleteProgress(novelId: novelId)
                 )
 
-                #if DEBUG
-                print("✅ [ReadingProgressRepo] Deleted from backend: \(novelId)")
-                #endif
+                Logger.syncLog("✅", "[ReadingProgressRepo] Deleted from backend: \(novelId)")
             } catch {
-                #if DEBUG
-                print("⚠️ [ReadingProgressRepo] Backend delete failed (local delete succeeded): \(error)")
-                #endif
+                Logger.error("[ReadingProgressRepo] Backend delete failed (local delete succeeded): \(error)", category: Logger.sync)
                 // No lanzar error porque local ya se eliminó
             }
         }
@@ -139,16 +128,12 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
     func fullSync() async throws -> SyncResult {
         syncState = .syncing
 
-        #if DEBUG
-        print("🔄 [ReadingProgressRepo] Starting full sync...")
-        #endif
+        Logger.syncLog("🔄", "[ReadingProgressRepo] Starting full sync...")
 
         // Verificar autenticación
         guard tokenManager.isTokenValid() else {
             let error = "Por favor inicia sesión para sincronizar"
-            #if DEBUG
-            print("❌ [ReadingProgressRepo] \(error)")
-            #endif
+            Logger.error("[ReadingProgressRepo] \(error)", category: Logger.sync)
             syncState = .error(message: error)
             throw SyncError.notAuthenticated
         }
@@ -174,16 +159,12 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
             lastSyncTime = Int64(Date().timeIntervalSince1970 * 1000)
             syncState = .success(synced: mergedCount, failed: 0)
 
-            #if DEBUG
-            print("✅ [ReadingProgressRepo] Sync completed: \(syncResult)")
-            #endif
+            Logger.syncLog("✅", "[ReadingProgressRepo] Sync completed: \(syncResult)")
 
             return syncResult
 
         } catch {
-            #if DEBUG
-            print("❌ [ReadingProgressRepo] Sync failed: \(error)")
-            #endif
+            Logger.error("[ReadingProgressRepo] Sync failed: \(error)", category: Logger.sync)
             syncState = .error(message: error.localizedDescription)
             throw error
         }
@@ -194,17 +175,13 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
     /// Sincronizar historial local al backend (Upload)
     /// Envía todo el historial local en una sola request batch
     private func syncToBackend() async throws -> Int {
-        #if DEBUG
-        print("📤 [ReadingProgressRepo] Uploading local history to backend...")
-        #endif
+        Logger.syncLog("📤", "[ReadingProgressRepo] Uploading local history to backend...")
 
         // Obtener todo el historial local
         let localHistory = await getAllReadingHistory()
 
         guard !localHistory.isEmpty else {
-            #if DEBUG
-            print("ℹ️ [ReadingProgressRepo] No local history to upload")
-            #endif
+            Logger.info("[ReadingProgressRepo] No local history to upload", category: Logger.sync)
             return 0
         }
 
@@ -229,9 +206,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
             LibraryEndpoints.syncHistory(body: SyncHistoryDto(history: historyDtos))
         )
 
-        #if DEBUG
-        print("✅ [ReadingProgressRepo] Upload completed: \(response.data.synced) synced, \(response.data.failed) failed")
-        #endif
+        Logger.syncLog("✅", "[ReadingProgressRepo] Upload completed: \(response.data.synced) synced, \(response.data.failed) failed")
 
         return response.data.synced
     }
@@ -240,9 +215,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
     /// Obtiene todo el historial del usuario desde el servidor
     /// 🚀 OPTIMIZACIÓN 2025: También sincroniza datos de novelas desde respuesta enriquecida
     private func syncFromBackend() async throws -> [ReadingProgressDomain] {
-        #if DEBUG
-        print("📥 [ReadingProgressRepo] Downloading history from backend...")
-        #endif
+        Logger.syncLog("📥", "[ReadingProgressRepo] Downloading history from backend...")
 
         let response: ApiResponse<[ReadingProgressResponseDto]> = try await networkClient.request(
             LibraryEndpoints.getHistory(limit: 1000, offset: 0)
@@ -255,9 +228,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
 
         let remoteHistory = enrichedResponses.map { $0.toDomain() }
 
-        #if DEBUG
-        print("✅ [ReadingProgressRepo] Downloaded \(remoteHistory.count) items from backend")
-        #endif
+        Logger.syncLog("✅", "[ReadingProgressRepo] Downloaded \(remoteHistory.count) items from backend")
 
         return remoteHistory
     }
@@ -279,16 +250,12 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
             // TODO: Aquí insertaríamos datos de novela en SwiftData si tuviéramos un NovelEntity
             // Por ahora solo lo logueamos para debugging
 
-            #if DEBUG
-            print("📚 [ReadingProgressRepo] Synced novel data: \(novelTitle)")
-            #endif
+            Logger.debug("[ReadingProgressRepo] Synced novel data: \(novelTitle)", category: Logger.database)
 
             syncedNovels += 1
         }
 
-        #if DEBUG
-        print("✅ [ReadingProgressRepo] Synced \(syncedNovels) novels from enriched data")
-        #endif
+        Logger.syncLog("✅", "[ReadingProgressRepo] Synced \(syncedNovels) novels from enriched data")
     }
 
     /// Hacer merge del historial remoto con local
@@ -304,6 +271,13 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
         var mergedCount = 0
 
         for remoteDomain in remoteHistory {
+            // ✅ VALIDAR DATOS CRÍTICOS: Skip entries con datos incompletos para prevenir crashes
+            guard let chapterId = remoteDomain.currentChapterId,
+                  !chapterId.isEmpty else {
+                Logger.debug("[ReadingProgressRepo] Skipping remote entry with missing chapterId: \(remoteDomain.novelId)", category: Logger.sync)
+                continue
+            }
+
             let existingProgress = await getProgress(novelId: remoteDomain.novelId)
 
             if existingProgress == nil {
@@ -311,10 +285,10 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
                 // Necesitamos título, portada, autor (de enrichedData o placeholder)
                 let newProgress = ReadingProgress(
                     novelId: remoteDomain.novelId,
-                    novelTitle: "Novela", // TODO: Obtener de enrichedData
+                    novelTitle: "Novela Sin Título", // TODO: Obtener de enrichedData
                     novelCoverImage: "",
                     authorName: "Autor Desconocido",
-                    currentChapterId: remoteDomain.currentChapterId ?? "",
+                    currentChapterId: chapterId, // ✅ Ya validado arriba
                     currentChapter: remoteDomain.currentChapter,
                     currentChapterTitle: "Capítulo \(remoteDomain.currentChapter)",
                     totalChapters: 100 // Placeholder
@@ -332,9 +306,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
                 modelContext.insert(newProgress)
                 mergedCount += 1
 
-                #if DEBUG
-                print("➕ [ReadingProgressRepo] Inserted new from remote: \(remoteDomain.novelId) (totalTime=\(remoteDomain.totalReadingTime)ms)")
-                #endif
+                Logger.syncLog("➕", "[ReadingProgressRepo] Inserted new from remote: \(remoteDomain.novelId) (totalTime=\(remoteDomain.totalReadingTime)ms)")
 
             } else {
                 // Existe en ambos → Last-Write-Wins + actualizar total del backend
@@ -342,9 +314,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
                     // Remoto más reciente → actualizar todo
                     existingProgress!.currentChapter = remoteDomain.currentChapter
                     existingProgress!.currentPosition = remoteDomain.currentPosition
-                    if let chapterId = remoteDomain.currentChapterId {
-                        existingProgress!.currentChapterId = chapterId
-                    }
+                    existingProgress!.currentChapterId = chapterId // ✅ Ya validado arriba
                     existingProgress!.scrollPercentage = remoteDomain.scrollPercentage
                     existingProgress!.segmentIndex = remoteDomain.segmentIndex
                     existingProgress!.totalChaptersRead = remoteDomain.totalChaptersRead
@@ -359,17 +329,13 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
 
                 mergedCount += 1
 
-                #if DEBUG
-                print("🔄 [ReadingProgressRepo] Updated from remote: \(remoteDomain.novelId) (backend=\(remoteDomain.totalReadingTime)ms)")
-                #endif
+                Logger.syncLog("🔄", "[ReadingProgressRepo] Updated from remote: \(remoteDomain.novelId) (backend=\(remoteDomain.totalReadingTime)ms)")
             }
         }
 
         try modelContext.save()
 
-        #if DEBUG
-        print("✅ [ReadingProgressRepo] Merge completed: \(mergedCount) items merged with dual counter strategy")
-        #endif
+        Logger.syncLog("✅", "[ReadingProgressRepo] Merge completed: \(mergedCount) items merged with dual counter strategy")
 
         return mergedCount
     }

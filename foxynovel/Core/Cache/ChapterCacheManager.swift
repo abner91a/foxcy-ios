@@ -6,6 +6,7 @@
 //
 
 import Foundation
+import OSLog
 
 @MainActor
 final class ChapterCacheManager {
@@ -62,9 +63,9 @@ final class ChapterCacheManager {
                 // Cache the result
                 set(chapter: content)
 
-                print("✅ Prefetched chapter: \(content.title) (ID: \(chapterId))")
+                Logger.cacheLog("✅", "[ChapterCache] Prefetched chapter: \(content.title) (ID: \(chapterId))")
             } catch {
-                print("❌ Prefetch failed for chapter \(chapterId): \(error)")
+                Logger.error("[ChapterCache] Prefetch failed for chapter \(chapterId): \(error)", category: Logger.cache)
             }
 
             // Remove task from dictionary
