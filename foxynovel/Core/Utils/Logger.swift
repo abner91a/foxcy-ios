@@ -56,6 +56,9 @@ enum Logger {
     /// Logs relacionados con configuración y dependencias
     static let config = OSLog(subsystem: subsystem, category: "Config")
 
+    /// Logs relacionados con tiempo de lectura (reading time tracking)
+    static let reading = OSLog(subsystem: subsystem, category: "Reading")
+
     // MARK: - Helper Methods
 
     /// Log de nivel DEBUG - Para información de desarrollo
@@ -116,6 +119,11 @@ enum Logger {
     /// Helper para logs de configuración con emoji
     static func configLog(_ emoji: String, _ message: String) {
         debug("\(emoji) \(message)", category: Logger.config)
+    }
+
+    /// Helper para logs de tiempo de lectura con emoji
+    static func reading(_ emoji: String, _ message: String) {
+        debug("\(emoji) \(message)", category: Logger.reading)
     }
 }
 

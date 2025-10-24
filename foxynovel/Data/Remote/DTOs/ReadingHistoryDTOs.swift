@@ -38,6 +38,7 @@ struct SyncHistoryDto: Codable {
 /// DTO de respuesta del backend con datos enriquecidos
 /// 🚀 OPTIMIZACIÓN 2025: Incluye datos de novela y autor
 /// Esto elimina la necesidad de queries adicionales para obtener títulos/portadas
+/// Backend retorna ReadingProgressEnrichedResponseDto que contiene todos estos campos
 struct ReadingProgressResponseDto: Codable {
     let id: String
     let userId: String
@@ -53,7 +54,8 @@ struct ReadingProgressResponseDto: Codable {
     let createdAt: String // ISO 8601
     let updatedAt: String // ISO 8601
 
-    // 🚀 Datos enriquecidos de novela (opcionales para retrocompatibilidad)
+    // 🚀 Datos enriquecidos de novela (siempre incluidos en GET /historia)
+    // Backend usa ReadingProgressEnrichedResponseDto con estos campos REQUERIDOS
     let novelTitle: String?
     let novelCoverImage: String?
     let novelStatus: String?
@@ -63,6 +65,11 @@ struct ReadingProgressResponseDto: Codable {
     let authorName: String?
     let authorSlug: String?
 }
+
+/// Alias para compatibilidad con backend
+/// Backend retorna ReadingProgressEnrichedResponseDto en GET endpoints
+/// que es idéntico a ReadingProgressResponseDto en iOS (ya incluye campos enriquecidos)
+typealias ReadingProgressEnrichedResponseDto = ReadingProgressResponseDto
 
 /// DTO de respuesta para sincronización masiva
 struct SyncHistoryResponseDto: Codable {

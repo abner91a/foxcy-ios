@@ -26,6 +26,11 @@ protocol ReadingProgressRepository: ObservableObject {
     func fullSync() async throws -> SyncResult
     func canSync() async -> Bool
 
+    // Backend operations (requieren autenticación)
+    /// Obtener progreso de una novela desde el backend
+    /// Retorna datos enriquecidos con información de novela y autor
+    func getNovelProgressFromBackend(novelId: String) async throws -> ReadingProgress?
+
     // Estados observables para UI (acceso directo a properties)
     var syncState: SyncState { get }
     var lastSyncTime: Int64? { get }
@@ -61,6 +66,8 @@ enum SyncError: Error, LocalizedError {
     case notAuthenticated
     case networkError(Error)
     case invalidResponse
+    case validationFailed(String) // 🛡️ ANTI-CHEAT: Backend rechazó datos (400)
+    case rateLimitExceeded(String) // ⚠️ Too many requests (429)
 
     var errorDescription: String? {
         switch self {
@@ -70,6 +77,10 @@ enum SyncError: Error, LocalizedError {
             return "Error de red: \(error.localizedDescription)"
         case .invalidResponse:
             return "Respuesta inválida del servidor"
+        case .validationFailed(let message):
+            return message
+        case .rateLimitExceeded(let message):
+            return message
         }
     }
 }

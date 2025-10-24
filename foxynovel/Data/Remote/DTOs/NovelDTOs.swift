@@ -27,7 +27,7 @@ struct NovelDTO: Decodable {
     let rating: Float
     let ratingsCount: Int
     let chaptersCount: Int
-    let commentsCount: Int
+    let commentsCount: Int?  // Optional: backend no siempre envía este campo
     let createdAt: String
     let updatedAt: String
     let popularityScore: Float
@@ -58,7 +58,7 @@ struct NovelDetailsDTO: Decodable {
     let ratingsCount: Int
     let views: Int
     let likes: Int
-    let commentsCount: Int
+    let commentsCount: Int?  // Optional: backend no envía este campo
     let chaptersCount: Int
     let author: AuthorDTO
     let genre: GenreDTO
@@ -104,7 +104,7 @@ extension NovelDTO {
             views: views,
             likes: likes,
             chaptersCount: chaptersCount,
-            commentsCount: commentsCount,
+            commentsCount: commentsCount ?? 0,  // Default a 0 si no existe
             genres: genre.map { [$0.name] } ?? [],
             tags: tags?.map { $0.name } ?? [],
             popularityScore: popularityScore,
@@ -127,7 +127,7 @@ extension NovelDetailsDTO {
             ratingsCount: ratingsCount,
             views: views,
             likes: likes,
-            commentsCount: commentsCount,
+            commentsCount: commentsCount ?? 0,  // Default a 0 si no existe
             chaptersCount: chaptersCount,
             author: author.toDomain(),
             genre: genre.toDomain(),

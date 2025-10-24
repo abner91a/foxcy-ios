@@ -14,6 +14,9 @@ enum LibraryEndpoints: Endpoint {
     // 📥 Descargar historial completo con datos enriquecidos
     case getHistory(limit: Int, offset: Int)
 
+    // 📖 Obtener progreso de una novela específica con datos enriquecidos
+    case getNovelProgress(novelId: String)
+
     // 📤 Actualizar progreso individual de una novela
     case updateProgress(novelId: String, body: ReadingProgressDto)
 
@@ -26,6 +29,8 @@ enum LibraryEndpoints: Endpoint {
             return "/v1/biblioteca/sync"
         case .getHistory:
             return "/v1/biblioteca/history"
+        case .getNovelProgress(let novelId):
+            return "/v1/biblioteca/history/\(novelId)"
         case .updateProgress(let novelId, _):
             return "/v1/biblioteca/history/\(novelId)"
         case .deleteProgress(let novelId):
@@ -37,7 +42,7 @@ enum LibraryEndpoints: Endpoint {
         switch self {
         case .syncHistory:
             return .post
-        case .getHistory:
+        case .getHistory, .getNovelProgress:
             return .get
         case .updateProgress:
             return .put
@@ -58,13 +63,13 @@ enum LibraryEndpoints: Endpoint {
         }
     }
 
-    var body: Data? {
+    var body: Encodable? {
         switch self {
         case .syncHistory(let syncBody):
-            return try? JSONEncoder().encode(syncBody)
+            return syncBody
         case .updateProgress(_, let progressBody):
-            return try? JSONEncoder().encode(progressBody)
-        case .getHistory, .deleteProgress:
+            return progressBody
+        case .getHistory, .getNovelProgress, .deleteProgress:
             return nil
         }
     }

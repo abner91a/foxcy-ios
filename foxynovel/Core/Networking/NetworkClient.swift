@@ -99,6 +99,13 @@ final class NetworkClient: NetworkClientProtocol {
             urlRequest.setValue("Bearer \(token)", forHTTPHeaderField: "Authorization")
         }
 
+        // 🐛 DEBUG: Log request body for sync endpoints
+        if urlRequest.url?.path.contains("/biblioteca/sync") == true,
+           let bodyData = urlRequest.httpBody,
+           let bodyString = String(data: bodyData, encoding: .utf8) {
+            Logger.debug("[NetworkClient] 🔍 SYNC REQUEST BODY: \(bodyString)", category: Logger.network)
+        }
+
         let (data, response) = try await session.data(for: urlRequest)
 
         guard let httpResponse = response as? HTTPURLResponse else {

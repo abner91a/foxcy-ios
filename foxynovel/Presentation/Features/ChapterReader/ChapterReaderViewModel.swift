@@ -28,6 +28,9 @@ final class ChapterReaderViewModel: ObservableObject {
     private let progressRepository: ReadingProgressRepository
     private let cacheManager = ChapterCacheManager.shared
 
+    // 📊 Reading time tracker
+    private let sessionTracker = ReadingSessionTracker()
+
     // MARK: - Private Properties
     private var lastSavedProgress: Double = 0.0
     private var currentNovelId: String = ""
@@ -225,11 +228,117 @@ final class ChapterReaderViewModel: ObservableObject {
         self.currentNovelCoverImage = coverImage
         self.currentAuthorName = authorName
         self.totalChapters = totalChapters
+
+        // 📊 Iniciar tracking de tiempo de lectura
+        startReadingSession()
     }
 
     func saveProgressOnExit() async {
         guard let content = currentChapter else { return }
         await saveProgress(progress: 1.0, chapterCompleted: true)
+
+        // 📊 Detener tracking y guardar tiempo
+        await stopReadingSession()
+    }
+
+    // MARK: - Reading Session Management
+
+    /// Inicia el tracking de tiempo de lectura
+    private func startReadingSession() {
+        guard !currentNovelId.isEmpty else {
+            Logger.reading("⚠️", "[ChapterReader] Cannot start session without novelId")
+            return
+        }
+
+        sessionTracker.startTracking(novelId: currentNovelId) { [weak self] accumulatedTime in
+            guard let self = self else { return }
+
+            Task { @MainActor in
+                await self.saveReadingTime(milliseconds: accumulatedTime)
+            }
+        }
+
+        Logger.reading("▶️", "[ChapterReader] Started reading session for: \(currentNovelTitle)")
+    }
+
+    /// Detiene el tracking y guarda el tiempo final
+    private func stopReadingSession() async {
+        let finalTime = sessionTracker.stopTracking()
+
+        if finalTime > 0 {
+            await saveReadingTime(milliseconds: finalTime)
+        }
+
+        Logger.reading("⏹️", "[ChapterReader] Stopped reading session. Final time: \(finalTime)ms")
+    }
+
+    /// Guarda el tiempo de lectura acumulado en el progreso local
+    /// 🛡️ ANTI-CHEAT: Valida velocidad de lectura antes de guardar
+    private func saveReadingTime(milliseconds: Int64) async {
+        guard !currentNovelId.isEmpty, milliseconds > 0 else { return }
+
+        // 🛡️ VALIDACIÓN: Verificar velocidad de lectura si el capítulo tiene wordCount
+        if let content = currentChapter, content.wordCount > 0 {
+            let wordCount = content.wordCount
+            let minutes = Double(milliseconds) / 1000.0 / 60.0
+
+            // Solo validar si la sesión duró al menos 5 segundos (0.0833 minutos)
+            if minutes >= 0.0833 {
+                let wpm = Int(Double(wordCount) / minutes)
+
+                // 🚨 VALIDACIÓN: Rechazar si WPM está fuera de rango razonable
+                // Rango: 50-1500 WPM en cliente (backend valida 100-1000)
+                if wpm < 50 || wpm > 1500 {
+                    Logger.error("[ChapterReader] 🚨 FRAUD: Invalid WPM (\(wpm)) for chapter \(content.id) (\(wordCount) words in \(Int(minutes)) min)", category: Logger.reading)
+                    Logger.error("[ChapterReader] Reading time NOT saved due to suspicious reading speed", category: Logger.reading)
+                    return // NO guardar progreso - velocidad imposible
+                }
+
+                // ⚠️ Log warning si está en el límite (cerca de fraude)
+                if wpm < 100 || wpm > 1000 {
+                    Logger.info("[ChapterReader] ⚠️ SUSPICIOUS: Borderline WPM (\(wpm)) for chapter \(content.id)", category: Logger.reading)
+                }
+            }
+        }
+
+        do {
+            // Obtener progreso existente o crear uno nuevo
+            var progress = await progressRepository.getProgress(novelId: currentNovelId)
+
+            if progress == nil {
+                // Crear progreso si no existe
+                guard let content = currentChapter else { return }
+
+                let newProgress = ReadingProgress(
+                    novelId: currentNovelId,
+                    novelTitle: currentNovelTitle,
+                    novelCoverImage: currentNovelCoverImage,
+                    authorName: currentAuthorName,
+                    currentChapterId: currentChapterId,
+                    currentChapter: content.chapterOrder,
+                    currentChapterTitle: content.title,
+                    totalChapters: totalChapters
+                )
+                try await progressRepository.saveProgress(newProgress)
+                progress = newProgress
+            }
+
+            // Acumular tiempo en unsyncedDelta
+            if let progress = progress {
+                progress.addReadingTime(milliseconds)
+                try await progressRepository.updateProgress(
+                    novelId: currentNovelId,
+                    chapterId: progress.currentChapterId,
+                    chapterOrder: progress.currentChapter,
+                    chapterTitle: progress.currentChapterTitle,
+                    progress: Double(progress.scrollPercentage ?? 0.0)
+                )
+
+                Logger.reading("💾", "[ChapterReader] Saved \(milliseconds)ms to unsyncedDelta. Total delta: \(progress.unsyncedDelta)ms")
+            }
+        } catch {
+            Logger.error("[ChapterReader] Error saving reading time: \(error)", category: Logger.reading)
+        }
     }
 
     // MARK: - Private Methods

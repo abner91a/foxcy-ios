@@ -32,9 +32,8 @@ enum AppConfiguration {
     static var baseURL: String {
         switch Environment.current {
         case .development:
-            // TODO: Reemplazar con la IP real del backend de desarrollo
-            // Para encontrar tu IP local: ifconfig | grep "inet " | grep -v 127.0.0.1
-            return "http://localhost:3001/api"
+            // IP local del Mac host para que el simulador pueda acceder
+            return "http://192.168.50.19:3001/api"
         case .staging:
             return "https://staging-api.foxynovel.com/api"
         case .production:

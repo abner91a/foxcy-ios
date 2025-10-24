@@ -74,4 +74,38 @@ class ReadingProgress {
         self.totalReadingTime = 0
         self.unsyncedDelta = 0
     }
+
+    // MARK: - Reading Time Management
+
+    /// Acumula tiempo de lectura en el delta local
+    /// Este delta se enviará al backend en el próximo sync
+    /// - Parameter milliseconds: Tiempo en milisegundos a agregar
+    func addReadingTime(_ milliseconds: Int64) {
+        guard milliseconds > 0 else { return }
+
+        unsyncedDelta += milliseconds
+        updatedAt = Date()
+
+        Logger.reading("⏱️", "[ReadingProgress] Added \(milliseconds)ms to unsyncedDelta. Total: \(unsyncedDelta)ms for novel: \(novelTitle)")
+    }
+
+    /// Resetea el delta local después de una sincronización exitosa
+    /// Debe llamarse después de que el backend confirme que recibió el tiempo
+    func resetUnsyncedDelta() {
+        let previousDelta = unsyncedDelta
+        unsyncedDelta = 0
+
+        Logger.reading("🔄", "[ReadingProgress] Reset unsyncedDelta. Was: \(previousDelta)ms, now: 0ms")
+    }
+
+    /// Actualiza el tiempo total desde el backend después de sincronizar
+    /// El backend es la source of truth para totalReadingTime
+    /// - Parameter backendTime: Tiempo total desde el servidor
+    func updateTotalReadingTimeFromBackend(_ backendTime: Int64) {
+        guard backendTime >= 0 else { return }
+
+        totalReadingTime = backendTime
+
+        Logger.reading("📥", "[ReadingProgress] Updated totalReadingTime from backend: \(backendTime)ms (\(backendTime/1000)s)")
+    }
 }
