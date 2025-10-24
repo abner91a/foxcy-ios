@@ -32,6 +32,8 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         tokenManager.saveToken(response.accessToken)
         if let refreshToken = response.refreshToken {
             (tokenManager as? TokenManager)?.saveRefreshToken(refreshToken)
+        } else {
+            Logger.info("[AuthRepository] ⚠️ Backend did not send refresh token on login - security risk!", category: Logger.auth)
         }
 
         let authResponse = response.toDomain()
@@ -54,6 +56,8 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         tokenManager.saveToken(response.accessToken)
         if let refreshToken = response.refreshToken {
             (tokenManager as? TokenManager)?.saveRefreshToken(refreshToken)
+        } else {
+            Logger.info("[AuthRepository] ⚠️ Backend did not send refresh token on register - security risk!", category: Logger.auth)
         }
 
         let authResponse = response.toDomain()
@@ -122,6 +126,8 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         tokenManager.saveToken(response.accessToken)
         if let refreshToken = response.refreshToken {
             (tokenManager as? TokenManager)?.saveRefreshToken(refreshToken)
+        } else {
+            Logger.info("[AuthRepository] ⚠️ Backend did not send refresh token on Google Sign-In - security risk!", category: Logger.auth)
         }
 
         Logger.authLog("✅", "[AuthRepository] Backend authentication successful")
@@ -150,6 +156,9 @@ final class AuthRepositoryImpl: AuthRepositoryProtocol {
         tokenManager.saveToken(response.accessToken)
         if let newRefreshToken = response.refreshToken {
             (tokenManager as? TokenManager)?.saveRefreshToken(newRefreshToken)
+        } else {
+            // 🔒 CRITICAL: Backend MUST rotate refresh tokens on each refresh
+            Logger.info("[AuthRepository] 🚨 SECURITY ALERT: Backend did not rotate refresh token - possible token reuse attack vector!", category: Logger.auth)
         }
 
         let authResponse = response.toDomain()

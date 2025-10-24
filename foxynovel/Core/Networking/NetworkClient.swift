@@ -18,13 +18,28 @@ private actor TokenRefreshCoordinator {
     private var isRefreshing = false
     private var currentRefreshTask: Task<Bool, Error>?
 
+    // 🔒 SEGURIDAD: Rate limiting para prevenir refresh loops infinitos
+    private var lastRefreshAttempt: Date?
+    private let minRefreshInterval: TimeInterval = 10 // 10 segundos entre intentos
+
     func performRefresh(
         refresh: @escaping () async throws -> Bool
     ) async -> Bool {
+        // 🔒 VALIDAR: No permitir refresh si se intentó hace menos de 10 segundos
+        if let lastAttempt = lastRefreshAttempt,
+           Date().timeIntervalSince(lastAttempt) < minRefreshInterval {
+            let timeSinceLastAttempt = Date().timeIntervalSince(lastAttempt)
+            Logger.info("[TokenRefreshCoordinator] Refresh attempt too soon (\(Int(timeSinceLastAttempt))s since last), skipping", category: Logger.network)
+            return false
+        }
+
         // Si ya hay un refresh en progreso, esperar a que termine
         if let existingTask = currentRefreshTask {
             return (try? await existingTask.value) ?? false
         }
+
+        // Registrar timestamp del intento
+        lastRefreshAttempt = Date()
 
         // Crear nueva tarea de refresh
         let task = Task {
@@ -168,6 +183,16 @@ final class NetworkClient: NetworkClientProtocol {
                 await self.handleSessionExpired(reason: "no_refresh_token")
                 return false
             }
+
+            // 🔒 SEGURIDAD: Validar refresh token antes de usarlo
+            // Previene request innecesario al backend si el token ya expiró
+            if JWTDecoder.isExpired(refreshToken) {
+                Logger.error("[NetworkClient] Refresh token expired - session invalid", category: Logger.network)
+                await self.handleSessionExpired(reason: "refresh_token_expired")
+                return false
+            }
+
+            Logger.networkLog("✅", "[NetworkClient] Refresh token validated, proceeding with refresh request")
 
             do {
                 // Create refresh endpoint

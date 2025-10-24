@@ -43,25 +43,34 @@ struct HomeView: View {
 
     // MARK: - Header
     private var headerSection: some View {
-        HStack {
-            VStack(alignment: .leading, spacing: 4) {
-                Text("FoxyNovel")
-                    .typography(Typography.headlineMedium)
+        VStack(spacing: Spacing.md) {
+            // Title and profile
+            HStack {
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("FoxyNovel")
+                        .typography(Typography.headlineMedium)
 
-                Text("Descubre historias increíbles")
-                    .typography(Typography.bodyMedium, color: .textSecondary)
+                    Text("Descubre historias increíbles")
+                        .typography(Typography.bodyMedium, color: .textSecondary)
+                }
+
+                Spacer()
+
+                // Profile/Menu button
+                Button {
+                    // Navigate to profile
+                } label: {
+                    Image(systemName: "person.circle.fill")
+                        .font(.title2)
+                        .foregroundColor(.accent)
+                }
             }
 
-            Spacer()
-
-            // Profile/Menu button
-            Button {
-                // Navigate to profile
-            } label: {
-                Image(systemName: "person.circle.fill")
-                    .font(.title2)
-                    .foregroundColor(.accent)
+            // Search Bar Button
+            NavigationLink(destination: SearchView()) {
+                SearchBarButton()
             }
+            .buttonStyle(PlainButtonStyle())
         }
         .padding(.horizontal, Spacing.screenPadding)
     }

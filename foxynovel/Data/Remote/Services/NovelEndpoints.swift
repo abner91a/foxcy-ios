@@ -28,7 +28,7 @@ enum NovelEndpoints: Endpoint {
         case .chapterContent(let chapterId):
             return "/v1/capitulosNovelapp/\(chapterId)/lectura"
         case .search:
-            return "/v1/search"
+            return "/v1/novels/search"
         case .toggleFavorite:
             return "/v1/userinterationNovelapp/favorite"
         case .toggleLike:
@@ -69,7 +69,7 @@ enum NovelEndpoints: Endpoint {
         case .chapterContent:
             return nil
         case .search(let query, let page):
-            return ["q": query, "page": "\(page)"]
+            return ["query": query, "page": "\(page)"]
         case .toggleFavorite, .toggleLike, .similarNovels:
             return nil
         }

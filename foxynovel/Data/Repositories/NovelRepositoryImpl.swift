@@ -39,8 +39,8 @@ final class NovelRepositoryImpl: NovelRepositoryProtocol {
 
     func searchNovels(query: String, page: Int) async throws -> [Novel] {
         let endpoint = NovelEndpoints.search(query: query, page: page)
-        let response: [NovelDTO] = try await networkClient.request(endpoint)
-        return response.map { $0.toDomain() }
+        let response: ApiResponse<NovelSearchResponseDTO> = try await networkClient.request(endpoint)
+        return response.data.novels.map { $0.toDomain() }
     }
 
     func toggleFavorite(novelId: String) async throws {

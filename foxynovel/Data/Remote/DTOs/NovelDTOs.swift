@@ -276,3 +276,31 @@ extension ContentSpanDTO {
         )
     }
 }
+
+// MARK: - Search Response DTOs
+struct NovelSearchResponseDTO: Decodable {
+    let novels: [NovelDTO]
+    let total: Int
+    let from: Int
+    let size: Int
+    let took: Int?
+    let aggregations: SearchAggregationsDTO?
+}
+
+struct SearchAggregationsDTO: Decodable {
+    let genres: [GenreCountDTO]?
+    let tags: [TagCountDTO]?
+    // ratingRanges tiene keys dinámicas, lo dejamos opcional por ahora
+}
+
+struct GenreCountDTO: Decodable {
+    let id: String
+    let name: String
+    let count: Int
+}
+
+struct TagCountDTO: Decodable {
+    let id: String
+    let name: String
+    let count: Int
+}

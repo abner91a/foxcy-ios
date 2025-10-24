@@ -35,15 +35,23 @@ final class TokenManager: TokenProvider {
     func getAccessToken() -> String? {
         let token = KeychainHelper.read(key: accessTokenKey)
         Logger.authLog("🔑", "[TokenManager] Reading access token: \(token != nil ? "✅ Found" : "❌ Not found")")
+        #if DEBUG
+        // 🔒 SEGURIDAD: Solo mostrar preview de token en DEBUG builds
         if let token = token {
             Logger.authLog("🔑", "[TokenManager] Token preview: \(token.prefix(20))...")
         }
+        #endif
         return token
     }
 
     func saveAccessToken(_ token: String) {
         KeychainHelper.save(key: accessTokenKey, value: token)
+        #if DEBUG
+        // 🔒 SEGURIDAD: Solo mostrar preview de token en DEBUG builds
         Logger.authLog("💾", "[TokenManager] Saved access token: \(token.prefix(20))...")
+        #else
+        Logger.authLog("💾", "[TokenManager] Access token saved successfully")
+        #endif
     }
 
     func deleteAccessToken() {
@@ -117,10 +125,15 @@ final class KeychainHelper {
     static func save(key: String, value: String) {
         guard let data = value.data(using: .utf8) else { return }
 
+        // 🔒 SEGURIDAD MEJORADA: Atributos de protección del Keychain
         let query: [String: Any] = [
             kSecClass as String: kSecClassGenericPassword,
             kSecAttrAccount as String: key,
-            kSecValueData as String: data
+            kSecValueData as String: data,
+            // ✅ Solo accesible cuando el dispositivo está desbloqueado
+            kSecAttrAccessible as String: kSecAttrAccessibleWhenUnlockedThisDeviceOnly,
+            // ✅ NO sincronizar con iCloud Keychain (mayor seguridad)
+            kSecAttrSynchronizable as String: false
         ]
 
         SecItemDelete(query as CFDictionary)
