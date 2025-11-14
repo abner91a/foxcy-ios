@@ -199,8 +199,8 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
 
     /// Sincronización bidireccional completa (match con Android)
     /// 1. Upload local → backend
-    /// 2. Download backend → local
-    /// 3. Merge con estrategia LWW (Last-Write-Wins)
+    /// 2. Download backend → local (con datos enriquecidos)
+    /// 3. Merge con estrategia LWW (Last-Write-Wins) + actualizar datos de novelas
     func fullSync() async throws -> SyncResult {
         syncState = .syncing
 
@@ -218,16 +218,16 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
             // Paso 1: Upload local history to backend
             let uploadedCount = try await syncToBackend()
 
-            // Paso 2: Download backend history
-            let downloadedHistory = try await syncFromBackend()
+            // Paso 2: Download backend history with enriched data (novelTitle, coverImage, authorName)
+            let enrichedHistory = try await syncFromBackend()
 
-            // Paso 3: Merge con local
-            let mergedCount = try await mergeWithLocal(downloadedHistory)
+            // Paso 3: Merge con local usando datos enriquecidos
+            let mergedCount = try await mergeWithLocal(enrichedHistory)
 
             // Actualizar estado
             let syncResult = SyncResult(
                 uploadedCount: uploadedCount,
-                downloadedCount: downloadedHistory.count,
+                downloadedCount: enrichedHistory.count,
                 mergedCount: mergedCount,
                 failedCount: 0
             )
@@ -374,7 +374,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
     /// Obtiene todo el historial del usuario desde el servidor
     /// 🚀 OPTIMIZACIÓN 2025: También sincroniza datos de novelas desde respuesta enriquecida
     /// Backend retorna ReadingProgressEnrichedResponseDto (alias de ReadingProgressResponseDto)
-    private func syncFromBackend() async throws -> [ReadingProgressDomain] {
+    private func syncFromBackend() async throws -> [ReadingProgressResponseDto] {
         Logger.syncLog("📥", "[ReadingProgressRepo] Downloading enriched history from backend...")
 
         // ReadingProgressResponseDto ya incluye datos enriquecidos (novelTitle, novelCoverImage, etc)
@@ -384,54 +384,28 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
 
         let enrichedResponses = response.data
 
-        // 🚀 Sincronizar datos de novelas ANTES de hacer merge del historial
-        await syncNovelsFromEnrichedData(enrichedResponses)
+        Logger.syncLog("✅", "[ReadingProgressRepo] Downloaded \(enrichedResponses.count) items from backend with enriched data")
 
-        let remoteHistory = enrichedResponses.map { $0.toDomain() }
-
-        Logger.syncLog("✅", "[ReadingProgressRepo] Downloaded \(remoteHistory.count) items from backend")
-
-        return remoteHistory
-    }
-
-    /// 🚀 OPTIMIZACIÓN 2025: Sincronizar datos de novelas desde respuesta enriquecida
-    /// El backend ahora retorna datos de novela (título, portada, autor) en el historial
-    /// Esto evita que aparezca "Novela Desconocida" en la biblioteca después del sync
-    private func syncNovelsFromEnrichedData(_ enrichedResponses: [ReadingProgressResponseDto]) async {
-        var syncedNovels = 0
-
-        for response in enrichedResponses {
-            // Verificar que tenga datos enriquecidos
-            guard let novelTitle = response.novelTitle,
-                  novelTitle != "Unknown Novel",
-                  novelTitle != "Novela Desconocida" else {
-                continue
-            }
-
-            // TODO: Aquí insertaríamos datos de novela en SwiftData si tuviéramos un NovelEntity
-            // Por ahora solo lo logueamos para debugging
-
-            Logger.debug("[ReadingProgressRepo] Synced novel data: \(novelTitle)", category: Logger.database)
-
-            syncedNovels += 1
-        }
-
-        Logger.syncLog("✅", "[ReadingProgressRepo] Synced \(syncedNovels) novels from enriched data")
+        return enrichedResponses
     }
 
     /// Hacer merge del historial remoto con local
     /// 🚀 Dual Counter Strategy:
     /// - Actualizar totalReadingTime con valor del backend (source of truth)
     /// - Resetear unsyncedDelta a 0 (ya fue acumulado en backend)
+    /// 🚀 OPTIMIZACIÓN 2025: Usa datos enriquecidos del backend (novelTitle, coverImage, authorName)
     ///
     /// Para cada novela:
-    /// - Si solo existe en remoto → insertar en local con unsyncedDelta=0
+    /// - Si solo existe en remoto → insertar en local con unsyncedDelta=0 + datos enriquecidos
     /// - Si solo existe en local → mantener (ya se subió, esperar download)
-    /// - Si existe en ambos → Last-Write-Wins + actualizar total del backend
-    private func mergeWithLocal(_ remoteHistory: [ReadingProgressDomain]) async throws -> Int {
+    /// - Si existe en ambos → Last-Write-Wins + actualizar total del backend + actualizar datos de novela
+    private func mergeWithLocal(_ enrichedHistory: [ReadingProgressResponseDto]) async throws -> Int {
         var mergedCount = 0
 
-        for remoteDomain in remoteHistory {
+        for enrichedDto in enrichedHistory {
+            // Convertir a dominio para acceder a campos base
+            let remoteDomain = enrichedDto.toDomain()
+
             // ✅ VALIDAR DATOS CRÍTICOS: Skip entries con datos incompletos para prevenir crashes
             guard let chapterId = remoteDomain.currentChapterId,
                   !chapterId.isEmpty else {
@@ -442,17 +416,17 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
             let existingProgress = await getProgress(novelId: remoteDomain.novelId)
 
             if existingProgress == nil {
-                // No existe en local → insertar del remoto
-                // Necesitamos título, portada, autor (de enrichedData o placeholder)
+                // No existe en local → insertar del remoto con datos enriquecidos
+                // 🚀 Usar datos reales del backend en lugar de placeholders
                 let newProgress = ReadingProgress(
                     novelId: remoteDomain.novelId,
-                    novelTitle: "Novela Sin Título", // TODO: Obtener de enrichedData
-                    novelCoverImage: "",
-                    authorName: "Autor Desconocido",
+                    novelTitle: enrichedDto.novelTitle ?? "Novela Sin Título",
+                    novelCoverImage: enrichedDto.novelCoverImage ?? "",
+                    authorName: enrichedDto.authorName ?? "Autor Desconocido",
                     currentChapterId: chapterId, // ✅ Ya validado arriba
                     currentChapter: remoteDomain.currentChapter,
                     currentChapterTitle: "Capítulo \(remoteDomain.currentChapter)",
-                    totalChapters: 100 // Placeholder
+                    totalChapters: enrichedDto.novelChaptersCount ?? 100
                 )
 
                 // Actualizar con datos del backend
@@ -467,7 +441,7 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
                 modelContext.insert(newProgress)
                 mergedCount += 1
 
-                Logger.syncLog("➕", "[ReadingProgressRepo] Inserted new from remote: \(remoteDomain.novelId) (totalTime=\(remoteDomain.totalReadingTime)ms)")
+                Logger.syncLog("➕", "[ReadingProgressRepo] Inserted new from remote: \(enrichedDto.novelTitle ?? remoteDomain.novelId) (totalTime=\(remoteDomain.totalReadingTime)ms)")
 
             } else {
                 // Existe en ambos → Last-Write-Wins + actualizar total del backend
@@ -482,6 +456,20 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
                     existingProgress!.lastReadDate = Date(timeIntervalSince1970: Double(remoteDomain.lastReadTime) / 1000.0)
                 }
 
+                // 🚀 ACTUALIZAR datos de novela si vienen en el DTO enriquecido
+                if let novelTitle = enrichedDto.novelTitle, !novelTitle.isEmpty {
+                    existingProgress!.novelTitle = novelTitle
+                }
+                if let coverImage = enrichedDto.novelCoverImage, !coverImage.isEmpty {
+                    existingProgress!.novelCoverImage = coverImage
+                }
+                if let authorName = enrichedDto.authorName, !authorName.isEmpty {
+                    existingProgress!.authorName = authorName
+                }
+                if let chaptersCount = enrichedDto.novelChaptersCount, chaptersCount > 0 {
+                    existingProgress!.totalChapters = chaptersCount
+                }
+
                 // ✅ SIEMPRE actualizar totalReadingTime del backend (source of truth)
                 existingProgress!.updateTotalReadingTimeFromBackend(remoteDomain.totalReadingTime)
 
@@ -490,13 +478,13 @@ class ReadingProgressRepositoryImpl: ObservableObject, ReadingProgressRepository
 
                 mergedCount += 1
 
-                Logger.syncLog("🔄", "[ReadingProgressRepo] Updated from remote: \(remoteDomain.novelId) (backend=\(remoteDomain.totalReadingTime)ms, delta reset to 0)")
+                Logger.syncLog("🔄", "[ReadingProgressRepo] Updated from remote: \(enrichedDto.novelTitle ?? remoteDomain.novelId) (backend=\(remoteDomain.totalReadingTime)ms, delta reset to 0)")
             }
         }
 
         try modelContext.save()
 
-        Logger.syncLog("✅", "[ReadingProgressRepo] Merge completed: \(mergedCount) items merged with dual counter strategy")
+        Logger.syncLog("✅", "[ReadingProgressRepo] Merge completed: \(mergedCount) items merged with dual counter strategy and enriched data")
 
         return mergedCount
     }
